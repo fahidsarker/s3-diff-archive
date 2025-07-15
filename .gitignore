@@ -2,4 +2,7 @@
 dist/
 tmp/
 test-files/
+test-videos/
 .DS_Store
+
+config.yaml

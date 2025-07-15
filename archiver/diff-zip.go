@@ -4,62 +4,64 @@ import (
 	// "archive/zip"
 	"fmt"
 	"os"
-	"s3-archive/utils"
+	"s3-diff-archive/utils"
 
 	"github.com/alexmullins/zip"
 
 	badger "github.com/dgraph-io/badger/v4"
 )
 
-func ZipDiff(baseDir string, outputFile string) int {
+func ZipDiff(config utils.Config) int {
+
 	db := GetDB()
 	defer db.Close()
-	stats, _ := os.Stat(baseDir)
-	if !stats.IsDir() {
-		panic("baseDir is not a directory")
+	totalFiles := 0
+
+	for _, taskConfig := range config.Tasks {
+		println(">>> Executing task: ", taskConfig.ID)
+		task := NewDiffZipTask(config, taskConfig.ID)
+		stats, _ := os.Stat(task.BaseDir)
+		if !stats.IsDir() {
+			panic("baseDir is not a directory")
+		}
+
+		totalFiles += zipIterator(db, task, task.BaseDir)
+		task.flush()
+		println("")
 	}
 
-	outFile, err := os.Create(outputFile)
-	if err != nil {
-		panic(err)
-	}
-
-	defer outFile.Close()
-	zipWriter := zip.NewWriter(outFile)
-	defer zipWriter.Close()
-
-	res := zipIterator(db, baseDir, zipWriter)
-	zipWriter.Flush()
-	println("")
-	return res
+	return totalFiles
 }
 
-var totalZippedFiles = 0
-var totalScannedFiles = 0
-
-func zipIterator(db *badger.DB, baseDir string, zipWriter *zip.Writer) int {
-	files, err := os.ReadDir(baseDir)
+func zipIterator(db *badger.DB, task *DiffZipTask, dirPath string) int {
+	files, err := os.ReadDir(dirPath)
 	if err != nil {
 		panic(err)
 	}
 
 	for _, file := range files {
 		if file.IsDir() {
-			zipIterator(db, baseDir+"/"+file.Name(), zipWriter)
+			zipIterator(db, task, dirPath+"/"+file.Name())
 			// println("Total zipped files: For dir: ", file.Name(), totalZippedFiles)
 		} else {
 			if file.Name() == ".DS_Store" {
 				continue
 			}
-			totalScannedFiles++
-			if hasFileUpdated(db, baseDir+"/"+file.Name()) {
-				totalZippedFiles++
-				utils.ZipFile(baseDir+"/"+file.Name(), zipWriter)
+			task.TotalScannedFiles++
+			stats, err := os.Stat(dirPath + "/" + file.Name())
+			if err != nil {
+				panic(err)
+			}
+			if hasFileUpdated(db, dirPath+"/"+file.Name(), stats) {
+				// totalZippedFiles++
+				task.TotalChangedFiles++
+				task.Zip(dirPath+"/"+file.Name(), stats)
+				// utils.ZipFile(baseDir+"/"+file.Name(), zipWriter)
 			}
 		}
-		fmt.Printf("\r>>> Scanned: %d files, New: %d files, Zipped: %d files...", totalScannedFiles, totalZippedFiles, totalZippedFiles)
+		fmt.Printf("\r>>> Scanned: %d files, New: %d files, Zipped: %d files...", task.TotalScannedFiles, task.TotalChangedFiles, task.zipper.fileCounts)
 	}
-	return totalZippedFiles
+	return task.zipper.fileCounts
 }
 
 func ArchiveDB(outputPath string) {

@@ -35,7 +35,7 @@ func storeFileToS3(db *badger.DB, file SFile) {
 	}
 }
 
-func hasFileUpdated(db *badger.DB, filePath string) bool {
+func hasFileUpdated(db *badger.DB, filePath string, stats os.FileInfo) bool {
 	var file SFile
 	err := db.View(func(txn *badger.Txn) error {
 		item, err := txn.Get([]byte(filePath))
@@ -55,10 +55,7 @@ func hasFileUpdated(db *badger.DB, filePath string) bool {
 		}
 		return nil
 	})
-	stats, err := os.Stat(filePath)
-	if err != nil {
-		panic(err)
-	}
+
 	newSfile := SFile{Path: filePath, Name: stats.Name(), Size: stats.Size(), Mtime: stats.ModTime().Unix()}
 	if err != nil {
 		storeFileToS3(db, newSfile)
