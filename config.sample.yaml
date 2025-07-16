@@ -1,0 +1,16 @@
+aws_access_key_id: your_access_key_id
+aws_secret_access_key: your_secret_access_key
+aws_region: us-east-1
+s3_bucket: my-bucket
+s3_base_path: "backups"
+
+working_dir: ./tmp # where the program stores data temporarily. Deletes the folder after the program finishes
+max_zip_size: 5000 # in MB -> creates multiple zip files where each file is less than 5000 MB
+
+tasks:
+  - id: photos
+    dir: ./test-images
+
+  - id: videos
+    dir: ./test-videos
+    skip_extensions: [.DSFile]

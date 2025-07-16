@@ -6,8 +6,6 @@ import (
 	"os"
 	"s3-diff-archive/utils"
 
-	"github.com/alexmullins/zip"
-
 	badger "github.com/dgraph-io/badger/v4"
 )
 
@@ -64,25 +62,26 @@ func zipIterator(db *badger.DB, task *DiffZipTask, dirPath string) int {
 	return task.zipper.fileCounts
 }
 
-func ArchiveDB(outputPath string) {
-	dbDir := "./tmp/db"
-	outFile, err := os.Create(outputPath)
-	if err != nil {
-		panic(err)
-	}
-	defer outFile.Close()
-	zipWriter := zip.NewWriter(outFile)
-	defer zipWriter.Close()
+// func ArchiveDB(outputPath string) {
+// 	dbDir := "./tmp/db"
+// 	outFile, err := os.Create(outputPath)
+// 	if err != nil {
+// 		panic(err)
+// 	}
+// 	defer outFile.Close()
+// 	zipWriter := zip.NewWriter(outFile)
+// 	defer zipWriter.Close()
 
-	files, err := os.ReadDir(dbDir)
-	if err != nil {
-		panic(err)
-	}
-	for _, file := range files {
-		if file.IsDir() {
-			continue
-		}
-		utils.ZipFile(dbDir+"/"+file.Name(), zipWriter)
-	}
-	println("Total zipped files: ", len(files))
-}
+// 	files, err := os.ReadDir(dbDir)
+// 	if err != nil {
+// 		panic(err)
+// 	}
+// 	for _, file := range files {
+// 		if file.IsDir() {
+// 			continue
+// 		}
+// 		fileStat:= os.Stat(dbDir+"/"+file.Name())
+// 		utils.ZipFile(dbDir+"/"+file.Name(), zipWriter, "golang")
+// 	}
+// 	println("Total zipped files: ", len(files))
+// }
