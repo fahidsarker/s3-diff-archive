@@ -44,7 +44,7 @@ func (c *DiffZipTask) nZipper(newFileStat os.FileInfo) *Zipper {
 }
 
 func (c *DiffZipTask) Zip(filePath string, fileStat os.FileInfo) {
-	c.nZipper(fileStat).zip(filePath, fileStat, c.Task.Password)
+	c.nZipper(fileStat).zip(filePath, filePath, fileStat, c.Task.Password)
 }
 
 func (c *DiffZipTask) flush() {

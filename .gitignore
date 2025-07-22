@@ -6,3 +6,5 @@ test-videos/
 .DS_Store
 
 config.yaml
+*.reg
+*.log

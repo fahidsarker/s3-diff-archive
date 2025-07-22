@@ -1,16 +1,45 @@
-aws_access_key_id: your_access_key_id
-aws_secret_access_key: your_secret_access_key
-aws_region: us-east-1
-s3_bucket: my-bucket
-s3_base_path: "backups"
+aws_access_key_id: aws_access_key_id
+aws_secret_access_key: aws_secret_access_key
+aws_region: aws_region
+s3_bucket: s3_bucket
+# s3_base_path: "backups"
 
-working_dir: ./tmp # where the program stores data temporarily. Deletes the folder after the program finishes
-max_zip_size: 5000 # in MB -> creates multiple zip files where each file is less than 5000 MB
+# store lgos (optional)
+logs_dir: "./tmp/logs"
+
+# temporarily store zip files for uploading
+working_dir: ./tmp
+
+# A password used to generate random keys for each encryption and
+# to encrypt the password-store
+# do not share the password and keep it safely stored
+# losing is password will mean no restore
+master_password: "asdasd"
+
+# max size for each zip file
+max_zip_size: 5000 # in MB
+
+# optional if you need to store DB in a separate bucket
+# why? Might want to choose archive in a us-east-1 due to cheap pricing
+# but DB requires faster access. so, store DB closer to your location
+# but storage class is only standard
+db_config:
+  bucket: fsds225p-backup-ap-1
+  region: asia-pacific-1
+  encrypt: true # default is false
+
+  # s3_base_path: "backups" # optional
+  # storage_class: "STANDARD" # Can only be Standard. Will be ignored. Instant access is required
 
 tasks:
   - id: photos
-    dir: ./test-images
+    dir: ./test-files
+
+    # which storage class to use for your backup zips. one of STANDARD | INTELLIGENT_TIERING | STANDARD_IA  | ONEZONE_IA | GLACIER | DEEP_ARCHIVE
+    # Default is DEEP_ARCHIVE
+    storage_class: INTELLIGENT_TIERING
 
   - id: videos
     dir: ./test-videos
-    skip_extensions: [.DSFile]
+    skip_extensions: [".DSFile"] # .DSFile is ignored by defaults
+    encrypt: true # default is false

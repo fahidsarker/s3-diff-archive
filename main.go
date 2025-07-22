@@ -1,27 +1,27 @@
 package main
 
 import (
-	"s3-diff-archive/archiver"
-	"s3-diff-archive/utils"
+	"encoding/json"
+	"s3-diff-archive/crypto"
+	l "s3-diff-archive/logger"
+	"s3-diff-archive/registery"
 )
 
 func main() {
-	// totalFiles := utils.CreateRandDirFiles("./test-files", 5, 4, 0)
-	// println("Total files created: ", totalFiles)
-	totalZipped := archiver.ZipDiff(utils.GetConfig())
-	println("Total zipped files: ", totalZipped)
-	// archiver.ArchiveDB("./tmp/test-db.zip")
+	// zipped := archiver.ZipDiff(utils.GetConfig())
+	// println("Total zipped files: ", zipped)
+	config := registery.DummyRegistry()
+	jsonConfig, _ := json.Marshal(config)
+	encrypted, _ := crypto.EncryptString(string(jsonConfig), "asdasd")
+	logger, _ := l.CreateLogger("scan.reg")
 
-	// utils.ParseConfig()
-	// diffZip := archiver.NewDiffZip(utils.GetConfig(), "photos")
-	// println("Scanning: ", diffZip.BaseDir)
-	// config := utils.GetConfig()
-	// jsn, err := json.Marshal(config)
-	// if err != nil {
-	// 	panic(err)
-	// }
-	// for _, task := range config.Tasks {
-	// 	println("Password for task: ", task.ID, " is: ", task.Password)
-	// }
-	// println(string(jsn))
+	for i := 0; i < 1000; i++ {
+		l.Log(logger, encrypted)
+	}
+
+	l.CloseLogger(logger)
+	lastReg, _ := l.ReadLastLine("scan.reg")
+	println(lastReg)
+	decrypted, _ := crypto.DecryptString(lastReg, "asdasd")
+	println(decrypted)
 }

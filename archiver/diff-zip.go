@@ -4,6 +4,7 @@ import (
 	// "archive/zip"
 	"fmt"
 	"os"
+	"path"
 	"s3-diff-archive/utils"
 
 	badger "github.com/dgraph-io/badger/v4"
@@ -11,20 +12,22 @@ import (
 
 func ZipDiff(config utils.Config) int {
 
-	db := GetDB()
-	defer db.Close()
 	totalFiles := 0
 
 	for _, taskConfig := range config.Tasks {
+		dbpath := path.Join(config.WorkingDir, taskConfig.ID, "db")
+		db := GetDB(dbpath)
 		println(">>> Executing task: ", taskConfig.ID)
 		task := NewDiffZipTask(config, taskConfig.ID)
-		stats, _ := os.Stat(task.BaseDir)
+		stats, _ := os.Stat(task.Dir)
 		if !stats.IsDir() {
 			panic("baseDir is not a directory")
 		}
 
-		totalFiles += zipIterator(db, task, task.BaseDir)
+		totalFiles += zipIterator(db, task, task.Dir)
+		db.Close()
 		task.flush()
+		ArchiveDB(dbpath, config.DBConfig.Encrypt, NewZipper(config.NewZipFileNameForTask(task.ID, 0, "_db")))
 		println("")
 	}
 
@@ -42,6 +45,7 @@ func zipIterator(db *badger.DB, task *DiffZipTask, dirPath string) int {
 			zipIterator(db, task, dirPath+"/"+file.Name())
 			// println("Total zipped files: For dir: ", file.Name(), totalZippedFiles)
 		} else {
+			// ignore .DS_Store files
 			if file.Name() == ".DS_Store" {
 				continue
 			}
@@ -62,26 +66,30 @@ func zipIterator(db *badger.DB, task *DiffZipTask, dirPath string) int {
 	return task.zipper.fileCounts
 }
 
-// func ArchiveDB(outputPath string) {
-// 	dbDir := "./tmp/db"
-// 	outFile, err := os.Create(outputPath)
-// 	if err != nil {
-// 		panic(err)
-// 	}
-// 	defer outFile.Close()
-// 	zipWriter := zip.NewWriter(outFile)
-// 	defer zipWriter.Close()
+func ArchiveDB(dbPath string, encrypt bool, zipper *Zipper) {
+	files, err := os.ReadDir(dbPath)
+	password := ""
+	if encrypt {
+		// password = utils.GenerateRandString(16)
+	}
+	if err != nil {
+		panic(err)
+	}
+	println("Total files in DB: ", len(files))
+	for _, file := range files {
+		if file.IsDir() {
+			continue
+		}
+		println("Zipping file: ", file.Name())
+		filePath := dbPath + "/" + file.Name()
+		stats, err := os.Stat(filePath)
+		if err != nil {
+			panic(err)
+		}
+		// utils.ZipFile(filePath, stats, zipper.zw, password)
+		zipper.zip(filePath, file.Name(), stats, password)
+	}
 
-// 	files, err := os.ReadDir(dbDir)
-// 	if err != nil {
-// 		panic(err)
-// 	}
-// 	for _, file := range files {
-// 		if file.IsDir() {
-// 			continue
-// 		}
-// 		fileStat:= os.Stat(dbDir+"/"+file.Name())
-// 		utils.ZipFile(dbDir+"/"+file.Name(), zipWriter, "golang")
-// 	}
-// 	println("Total zipped files: ", len(files))
-// }
+	zipper.flush()
+
+}

@@ -8,8 +8,8 @@ import (
 	badger "github.com/dgraph-io/badger/v4"
 )
 
-func GetDB() *badger.DB {
-	opts := badger.DefaultOptions("./tmp/db") // Directory to store the database
+func GetDB(dbPath string) *badger.DB {
+	opts := badger.DefaultOptions(dbPath) // Directory to store the database
 	db, err := badger.Open(opts)
 	if err != nil {
 		log.Fatal(err)

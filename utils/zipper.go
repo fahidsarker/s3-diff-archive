@@ -9,10 +9,10 @@ import (
 	"github.com/alexmullins/zip"
 )
 
-func ZipFile(file string, fileStat os.FileInfo, zipWriter *zip.Writer, password string) {
-	fileToZip, err := os.Open(file)
+func ZipFile(filePath string, filename string, fileStat os.FileInfo, zipWriter *zip.Writer, password string) {
+	fileToZip, err := os.Open(filePath)
 	if err != nil {
-		log.Fatalf("failed to open file %s: %v", file, err)
+		log.Fatalf("failed to open file %s: %v", filePath, err)
 	}
 	defer fileToZip.Close()
 
@@ -22,7 +22,7 @@ func ZipFile(file string, fileStat os.FileInfo, zipWriter *zip.Writer, password 
 		if err != nil {
 			log.Fatalf("failed to create zip header: %v", err)
 		}
-		header.Name = file
+		header.Name = filename
 		header.Method = zip.Deflate
 
 		w, err = zipWriter.CreateHeader(header)
@@ -31,7 +31,7 @@ func ZipFile(file string, fileStat os.FileInfo, zipWriter *zip.Writer, password 
 		}
 	} else {
 		// Assumes zipWriter.Encrypt is available from a 3rd-party library like "github.com/alexmullins/zip"
-		w, err = zipWriter.Encrypt(file, password)
+		w, err = zipWriter.Encrypt(filePath, password)
 		if err != nil {
 			log.Fatalf("failed to create encrypted zip entry: %v", err)
 		}

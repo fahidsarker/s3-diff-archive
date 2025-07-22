@@ -7,17 +7,30 @@ import (
 	"strings"
 	"time"
 
+	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"gopkg.in/yaml.v3"
 )
 
+// var SUPPORTED_STORAGE_CLASSES = []string{"STANDARD", "INTELLIGENT_TIERING", "STANDARD_IA", "ONEZONE_IA", "GLACIER", "DEEP_ARCHIVE"}
+
 type BaseConfig struct {
-	S3BasePath         string `yaml:"s3_base_path"`
-	AWSAccessKeyID     string `yaml:"aws_access_key_id"`
-	AWSSecretAccessKey string `yaml:"aws_secret_access_key"`
-	AWSRegion          string `yaml:"aws_region"`
-	S3Bucket           string `yaml:"s3_bucket"`
-	WorkingDir         string `yaml:"working_dir"`
-	MaxZipSize         int64  `yaml:"max_zip_size"` // in MB
+	AWSAccessKeyID     string   `yaml:"aws_access_key_id"`
+	AWSSecretAccessKey string   `yaml:"aws_secret_access_key"`
+	AWSRegion          string   `yaml:"aws_region"`
+	S3Bucket           string   `yaml:"s3_bucket"`
+	MaxZipSize         int64    `yaml:"max_zip_size"` // in MB
+	S3BasePath         string   `yaml:"s3_base_path"`
+	MasterPassword     string   `yaml:"master_password"`
+	WorkingDir         string   `yaml:"working_dir"`
+	LogsDir            string   `yaml:"logs_dir"`
+	DBConfig           DBConfig `yaml:"db_config"`
+}
+
+type DBConfig struct {
+	Bucket     string `yaml:"bucket"`
+	Region     string `yaml:"region"`
+	Encrypt    bool   `yaml:"encrypt"`
+	S3BasePath string `yaml:"s3_base_path"`
 }
 
 type Config struct {
@@ -26,11 +39,14 @@ type Config struct {
 }
 
 type Task struct {
-	ID             string   `yaml:"id"`
-	BaseDir        string   `yaml:"dir"`
-	SkipExtensions []string `yaml:"skip_extensions"`
-	Password       string   `yaml:"password"`
-	UseChecksum    bool     `yaml:"use_checksum"`
+	ID                 string   `yaml:"id"`
+	Dir                string   `yaml:"dir"`
+	SkipExtensions     []string `yaml:"skip_extensions"`
+	storageClassString string   `yaml:"storage_class"`
+	StorageClass       types.StorageClass
+	UseChecksum        bool `yaml:"use_checksum"`
+	Encrypt            bool `yaml:"encrypt"`
+	Password           string
 }
 
 type TaskConfig struct {
@@ -62,7 +78,7 @@ func GetConfig() Config {
 	return cfg
 }
 
-func (c *BaseConfig) NewZipFileNameForTask(taskId string, index int) string {
+func (c *BaseConfig) NewZipFileNameForTask(taskId string, index int, extras ...string) string {
 	if _, err := os.Stat(c.WorkingDir); os.IsNotExist(err) {
 		err := os.Mkdir(c.WorkingDir, 0755)
 		if err != nil {
@@ -70,12 +86,12 @@ func (c *BaseConfig) NewZipFileNameForTask(taskId string, index int) string {
 		}
 	}
 
-	zipSuffix := time.Now().UTC().Format("2006-01-02_15_04_05")
+	zipSuffix := time.Now().UTC().Format("2006_01_02_15_04_05")
 	if index > 0 {
 		zipSuffix = zipSuffix + "_" + fmt.Sprintf("%d", index)
 	}
 
-	zipName := strings.ReplaceAll(taskId, " ", "_") + "_" + zipSuffix + ".zip"
+	zipName := strings.ReplaceAll(taskId, " ", "_") + "_" + zipSuffix + strings.Join(extras, "_") + ".zip"
 
 	return filepath.Join(c.WorkingDir, zipName)
 }
@@ -91,9 +107,7 @@ func (c *Config) Validate() {
 		c.S3BasePath = ""
 	}
 
-	if strings.HasSuffix(c.S3BasePath, "/") {
-		c.S3BasePath = c.S3BasePath[:len(c.S3BasePath)-1]
-	}
+	c.S3BasePath = strings.TrimSuffix(c.S3BasePath, "/")
 
 	required(c.AWSAccessKeyID, "AWS access key id")
 	required(c.AWSSecretAccessKey, "AWS secret access key")
@@ -105,19 +119,50 @@ func (c *Config) Validate() {
 		Err("Max zip size must be greater than 5MB")
 	}
 
-	for _, task := range c.Tasks {
-		task.Validate()
+	for i := range c.Tasks {
+		c.Tasks[i].Validate()
+	}
+
+	if c.DBConfig.Bucket == "" {
+		c.DBConfig.Bucket = c.S3Bucket
+		c.DBConfig.Region = c.AWSRegion
+		c.DBConfig.Encrypt = false
+		c.DBConfig.S3BasePath = c.S3BasePath
 	}
 }
 func (t *Task) Validate() {
 	required(t.ID, "Task id")
-	required(t.BaseDir, fmt.Sprintf("Task - %s base dir", t.ID))
+	required(t.Dir, fmt.Sprintf("Task - %s base dir", t.ID))
 	if t.SkipExtensions == nil {
 		t.SkipExtensions = []string{}
 	}
 	for _, ext := range t.SkipExtensions {
 		if ext == "" {
 			Err("Task skip extensions cannot be empty")
+		}
+	}
+
+	t.Password = ""
+	if t.Encrypt {
+		t.Password = GenerateRandString(16)
+	}
+
+	if t.storageClassString == "" {
+		// println("Empty storage class")
+		t.StorageClass = types.StorageClassDeepArchive
+	} else {
+		invalid := true
+		var supported []string
+		for _, sc := range types.StorageClassDeepArchive.Values() {
+			if sc == types.StorageClass(t.storageClassString) {
+				t.StorageClass = sc
+				invalid = false
+				break
+			}
+			supported = append(supported, string(sc))
+		}
+		if invalid {
+			Err(fmt.Sprintf("Invalid storage class: %s. Supported storage classes: %s", t.storageClassString, strings.Join(supported, ", ")))
 		}
 	}
 

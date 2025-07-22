@@ -21,17 +21,18 @@ func (c *Zipper) flush() {
 	if c.zw != nil {
 		defer c.zw.Close()
 	}
-	if c.fileCounts <= 0 {
+	if c.fileCounts <= 0 && c.file != nil {
 		defer os.Remove(c.file.Name())
 	}
 
+	// After defers
 	c.file = nil
 	c.zw = nil
 	c.totalSizeInBytes = 0
 }
 
-func (c *Zipper) zip(file string, fileStat os.FileInfo, password string) {
-	utils.ZipFile(file, fileStat, c.zw, password)
+func (c *Zipper) zip(filePath string, filename string, fileStat os.FileInfo, password string) {
+	utils.ZipFile(filePath, filename, fileStat, c.zw, password)
 	c.totalSizeInBytes += fileStat.Size()
 	c.fileCounts++
 }
