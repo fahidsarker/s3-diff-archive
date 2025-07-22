@@ -1,27 +1,16 @@
 package main
 
 import (
-	"encoding/json"
-	"s3-diff-archive/crypto"
+	"s3-diff-archive/archiver"
 	l "s3-diff-archive/logger"
-	"s3-diff-archive/registery"
+	"s3-diff-archive/utils"
 )
 
 func main() {
-	// zipped := archiver.ZipDiff(utils.GetConfig())
-	// println("Total zipped files: ", zipped)
-	config := registery.DummyRegistry()
-	jsonConfig, _ := json.Marshal(config)
-	encrypted, _ := crypto.EncryptString(string(jsonConfig), "asdasd")
-	logger, _ := l.CreateLogger("scan.reg")
+	defer l.ScanLog.Close()
+	defer l.Logs.Close()
+	// defer l.DiffLog.Close()
+	zipped := archiver.ZipDiff(utils.GetConfig())
+	println("Total zipped files: ", zipped)
 
-	for i := 0; i < 1000; i++ {
-		l.Log(logger, encrypted)
-	}
-
-	l.CloseLogger(logger)
-	lastReg, _ := l.ReadLastLine("scan.reg")
-	println(lastReg)
-	decrypted, _ := crypto.DecryptString(lastReg, "asdasd")
-	println(decrypted)
 }

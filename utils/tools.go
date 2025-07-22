@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math/rand"
 	"os"
+	"time"
 )
 
 func Where[T any](list []T, predicate func(T) bool) []T {
@@ -74,4 +75,9 @@ func IsWorkingDirValid(workingDir string) bool {
 		return false
 	}
 	return true
+}
+
+func NowTime() string {
+	// 2025-07-22 12:20:44
+	return time.Now().Format("2006-01-02 15:04:05")
 }

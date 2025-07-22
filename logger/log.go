@@ -3,25 +3,37 @@ package logger
 import (
 	"bufio"
 	"bytes"
+	"fmt"
 	"os"
+	"s3-diff-archive/utils"
 )
 
 // BufferedLogger encapsulates the logging state
 type BufferedLogger struct {
-	logChan chan string
-	done    chan struct{}
+	logChan        chan string
+	done           chan struct{}
+	printToConsole bool
 }
 
+const (
+	Reset  = "\x1b[0m"
+	Red    = "\x1b[31m"
+	Green  = "\x1b[32m"
+	Yellow = "\x1b[33m"
+	Blue   = "\x1b[34m"
+)
+
 // CreateLogger sets up a buffered logger writing to the specified file path.
-func CreateLogger(path string) (*BufferedLogger, error) {
+func CreateLogger(path string, printToConsole bool) (*BufferedLogger, error) {
 	file, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
 	if err != nil {
 		return nil, err
 	}
 
 	logger := &BufferedLogger{
-		logChan: make(chan string, 10000),
-		done:    make(chan struct{}),
+		logChan:        make(chan string, 10000),
+		done:           make(chan struct{}),
+		printToConsole: printToConsole,
 	}
 
 	go func() {
@@ -42,11 +54,53 @@ func CreateLogger(path string) (*BufferedLogger, error) {
 
 // Log sends a log message to the logger's buffer.
 func Log(logger *BufferedLogger, message string) {
+
 	select {
 	case logger.logChan <- message:
 	default:
 		// drop log if buffer is full (or handle as needed)
 	}
+}
+
+func FormatedLog(logger *BufferedLogger, level string, message string) {
+	toLog := fmt.Sprintf("%s | %s\t| %s", utils.NowTime(), level, message)
+	if logger.printToConsole {
+		prefix := ""
+		switch level {
+		case "INFO":
+			prefix = Green
+		case "ERROR":
+			prefix = Red
+		case "WARN":
+			prefix = Yellow
+		default:
+			prefix = ""
+		}
+
+		fmt.Printf("%s%s%s\n", prefix, toLog, Reset)
+	}
+	Log(logger, toLog)
+}
+
+func (logger *BufferedLogger) Info(message string) {
+	FormatedLog(logger, "INFO", message)
+}
+
+func (logger *BufferedLogger) Log(message string) {
+	FormatedLog(logger, "Log", message)
+}
+
+func (logger *BufferedLogger) Error(message string) {
+	FormatedLog(logger, "ERROR", message)
+}
+
+func (logger *BufferedLogger) Warn(message string) {
+	FormatedLog(logger, "WARN", message)
+}
+
+func (logger *BufferedLogger) Close() {
+	// Log(logger, message)
+	CloseLogger(logger)
 }
 
 // CloseLogger gracefully shuts down the logger and flushes the buffer.

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"s3-diff-archive/logger"
 	"s3-diff-archive/utils"
 
 	badger "github.com/dgraph-io/badger/v4"
@@ -15,20 +16,22 @@ func ZipDiff(config utils.Config) int {
 	totalFiles := 0
 
 	for _, taskConfig := range config.Tasks {
+		logger.Logs.Info("Executing task: " + taskConfig.ID)
 		dbpath := path.Join(config.WorkingDir, taskConfig.ID, "db")
 		db := GetDB(dbpath)
-		println(">>> Executing task: ", taskConfig.ID)
 		task := NewDiffZipTask(config, taskConfig.ID)
 		stats, _ := os.Stat(task.Dir)
 		if !stats.IsDir() {
+			logger.Logs.Error("baseDir is not a directory")
 			panic("baseDir is not a directory")
 		}
 
 		totalFiles += zipIterator(db, task, task.Dir)
+		println("")
+		logger.Logs.Info("Total files in task " + task.ID + ": " + fmt.Sprint(task.TotalScannedFiles))
 		db.Close()
 		task.flush()
 		ArchiveDB(dbpath, config.DBConfig.Encrypt, NewZipper(config.NewZipFileNameForTask(task.ID, 0, "_db")))
-		println("")
 	}
 
 	return totalFiles
@@ -54,11 +57,11 @@ func zipIterator(db *badger.DB, task *DiffZipTask, dirPath string) int {
 			if err != nil {
 				panic(err)
 			}
-			if hasFileUpdated(db, dirPath+"/"+file.Name(), stats) {
-				// totalZippedFiles++
+			fileUpdated := hasFileUpdated(db, dirPath+"/"+file.Name(), stats)
+			logger.ScanLog.Info(task.ID + "\t" + dirPath + "/" + file.Name() + ", File Updated: " + fmt.Sprint(fileUpdated) + ", Size: " + fmt.Sprint(stats.Size()))
+			if fileUpdated {
 				task.TotalChangedFiles++
 				task.Zip(dirPath+"/"+file.Name(), stats)
-				// utils.ZipFile(baseDir+"/"+file.Name(), zipWriter)
 			}
 		}
 		fmt.Printf("\r>>> Scanned: %d files, New: %d files, Zipped: %d files...", task.TotalScannedFiles, task.TotalChangedFiles, task.zipper.fileCounts)
@@ -75,12 +78,11 @@ func ArchiveDB(dbPath string, encrypt bool, zipper *Zipper) {
 	if err != nil {
 		panic(err)
 	}
-	println("Total files in DB: ", len(files))
+	logger.Logs.Info("Total files in DB: " + fmt.Sprint(len(files)))
 	for _, file := range files {
 		if file.IsDir() {
 			continue
 		}
-		println("Zipping file: ", file.Name())
 		filePath := dbPath + "/" + file.Name()
 		stats, err := os.Stat(filePath)
 		if err != nil {
