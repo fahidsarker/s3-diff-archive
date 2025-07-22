@@ -8,10 +8,10 @@ import (
 type DiffZipTask struct {
 	utils.TaskConfig
 	MaxZipSizeInMBytes int64
-	currentZWIdx       int
 	zipper             *Zipper
 	TotalScannedFiles  int
 	TotalChangedFiles  int
+	ZipFilePaths       []string
 }
 
 func NewDiffZipTask(config utils.Config, taskId string) *DiffZipTask {
@@ -19,26 +19,31 @@ func NewDiffZipTask(config utils.Config, taskId string) *DiffZipTask {
 	if err != nil {
 		panic(err)
 	}
+	newZipOutputFile := config.NewZipFileNameForTask(taskId, 0)
 	return &DiffZipTask{
 		TotalScannedFiles:  0,
 		TotalChangedFiles:  0,
 		MaxZipSizeInMBytes: config.MaxZipSize,
-		currentZWIdx:       0,
 		TaskConfig:         *task,
-		zipper:             NewZipper(config.NewZipFileNameForTask(taskId, 0)),
+		ZipFilePaths:       []string{},
+		zipper:             NewZipper(newZipOutputFile),
 	}
 }
 
 func (c *DiffZipTask) nZipper(newFileStat os.FileInfo) *Zipper {
+
 	if c.zipper == nil {
-		c.currentZWIdx++
-		c.zipper = NewZipper(c.NewZipFileNameForTask(c.ID, c.currentZWIdx))
+		newZipperPath := c.NewZipFileNameForTask(c.ID, len(c.ZipFilePaths))
+		c.zipper = NewZipper(newZipperPath)
 	}
 
 	if ((c.zipper.totalSizeInBytes + newFileStat.Size()) / 1024 / 1024) > c.MaxZipSizeInMBytes {
-		c.zipper.flush()
-		c.currentZWIdx++
-		c.zipper = NewZipper(c.NewZipFileNameForTask(c.ID, c.currentZWIdx))
+		newPath := c.zipper.flush()
+		if newPath != "" {
+			c.ZipFilePaths = append(c.ZipFilePaths, newPath)
+		}
+		newZipperPath := c.NewZipFileNameForTask(c.ID, len(c.ZipFilePaths))
+		c.zipper = NewZipper(newZipperPath)
 	}
 	return c.zipper
 }
@@ -48,6 +53,9 @@ func (c *DiffZipTask) Zip(filePath string, fileStat os.FileInfo) {
 }
 
 func (c *DiffZipTask) flush() {
-	c.zipper.flush()
+	newPath := c.zipper.flush()
+	if newPath != "" {
+		c.ZipFilePaths = append(c.ZipFilePaths, newPath)
+	}
 	c.zipper = nil
 }

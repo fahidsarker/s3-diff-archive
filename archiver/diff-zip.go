@@ -28,7 +28,8 @@ func ZipDiff(config utils.Config) int {
 
 		totalFiles += zipIterator(db, task, task.Dir)
 		println("")
-		logger.Logs.Info("Total files in task " + task.ID + ": " + fmt.Sprint(task.TotalScannedFiles))
+		logger.Logs.Info("Total Zip file created in task " + task.ID + ": " + fmt.Sprint(len(task.ZipFilePaths)))
+		logger.Logs.Info("Total files in task " + task.ID + ": " + fmt.Sprint(task.TotalScannedFiles) + ", New files: " + fmt.Sprint(task.TotalChangedFiles))
 		db.Close()
 		task.flush()
 		ArchiveDB(dbpath, config.DBConfig.Encrypt, NewZipper(config.NewZipFileNameForTask(task.ID, 0, "_db")))
@@ -64,7 +65,7 @@ func zipIterator(db *badger.DB, task *DiffZipTask, dirPath string) int {
 				task.Zip(dirPath+"/"+file.Name(), stats)
 			}
 		}
-		fmt.Printf("\r>>> Scanned: %d files, New: %d files, Zipped: %d files...", task.TotalScannedFiles, task.TotalChangedFiles, task.zipper.fileCounts)
+		fmt.Printf("\r>>> Scanned: %d files, New: %d files, Zipped: %d files...", task.TotalScannedFiles, task.TotalChangedFiles, task.TotalChangedFiles)
 	}
 	return task.zipper.fileCounts
 }

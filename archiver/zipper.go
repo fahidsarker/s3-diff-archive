@@ -14,7 +14,11 @@ type Zipper struct {
 	fileCounts       int
 }
 
-func (c *Zipper) flush() {
+func (c *Zipper) flush() string {
+	filePath := c.file.Name()
+	if c.fileCounts == 0 {
+		filePath = ""
+	}
 	if c.file != nil {
 		defer c.file.Close()
 	}
@@ -29,6 +33,7 @@ func (c *Zipper) flush() {
 	c.file = nil
 	c.zw = nil
 	c.totalSizeInBytes = 0
+	return filePath
 }
 
 func (c *Zipper) zip(filePath string, filename string, fileStat os.FileInfo, password string) {
@@ -38,7 +43,7 @@ func (c *Zipper) zip(filePath string, filename string, fileStat os.FileInfo, pas
 }
 
 func NewZipper(outputFile string) *Zipper {
-	println("Output file: ", outputFile)
+	// println("Output file: ", outputFile)
 	outFile, err := os.Create(outputFile)
 	if err != nil {
 		panic(err)

@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"log"
 	"os"
-	"s3-diff-archive/logger"
 
 	badger "github.com/dgraph-io/badger/v4"
 )
@@ -19,7 +18,7 @@ func GetDB(dbPath string) *badger.DB {
 	return db
 }
 
-func storeFileToS3(db *badger.DB, file SFile) {
+func storeFileToDB(db *badger.DB, file SFile) {
 	jsonData, err := json.Marshal(file)
 	if err != nil {
 		panic(err)
@@ -59,13 +58,13 @@ func hasFileUpdated(db *badger.DB, filePath string, stats os.FileInfo) bool {
 
 	newSfile := SFile{Path: filePath, Name: stats.Name(), Size: stats.Size(), Mtime: stats.ModTime().Unix()}
 	if err != nil {
-		logger.Logs.Error(err.Error())
-		storeFileToS3(db, newSfile)
+		// logger.Logs.Error(err.Error())
+		storeFileToDB(db, newSfile)
 		return true
 	}
 
 	if stats.Size() != file.Size || stats.ModTime().Unix() != file.Mtime || stats.Name() != file.Name {
-		storeFileToS3(db, newSfile)
+		storeFileToDB(db, newSfile)
 		return true
 	}
 

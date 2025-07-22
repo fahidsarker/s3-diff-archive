@@ -13,6 +13,7 @@ type BufferedLogger struct {
 	logChan        chan string
 	done           chan struct{}
 	printToConsole bool
+	printToFile    bool
 }
 
 const (
@@ -24,37 +25,43 @@ const (
 )
 
 // CreateLogger sets up a buffered logger writing to the specified file path.
-func CreateLogger(path string, printToConsole bool) (*BufferedLogger, error) {
-	file, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
-	if err != nil {
-		return nil, err
-	}
+func CreateLogger(path string, printToConsole bool, printToFile bool) (*BufferedLogger, error) {
 
 	logger := &BufferedLogger{
 		logChan:        make(chan string, 10000),
 		done:           make(chan struct{}),
 		printToConsole: printToConsole,
+		printToFile:    printToFile,
 	}
 
-	go func() {
-		writer := bufio.NewWriterSize(file, 64*1024)
-		defer func() {
-			writer.Flush()
-			file.Close()
-			close(logger.done)
-		}()
-
-		for msg := range logger.logChan {
-			writer.WriteString(msg + "\n")
+	if printToFile {
+		file, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+		if err != nil {
+			return nil, err
 		}
-	}()
+
+		go func() {
+			writer := bufio.NewWriterSize(file, 64*1024)
+			defer func() {
+				writer.Flush()
+				file.Close()
+				close(logger.done)
+			}()
+
+			for msg := range logger.logChan {
+				writer.WriteString(msg + "\n")
+			}
+		}()
+	}
 
 	return logger, nil
 }
 
 // Log sends a log message to the logger's buffer.
 func Log(logger *BufferedLogger, message string) {
-
+	if !logger.printToFile {
+		return
+	}
 	select {
 	case logger.logChan <- message:
 	default:
@@ -77,7 +84,7 @@ func FormatedLog(logger *BufferedLogger, level string, message string) {
 			prefix = ""
 		}
 
-		fmt.Printf("%s%s%s\n", prefix, toLog, Reset)
+		fmt.Printf("\r%s%s%s\n", prefix, toLog, Reset)
 	}
 	Log(logger, toLog)
 }
@@ -105,8 +112,10 @@ func (logger *BufferedLogger) Close() {
 
 // CloseLogger gracefully shuts down the logger and flushes the buffer.
 func CloseLogger(logger *BufferedLogger) {
-	close(logger.logChan)
-	<-logger.done // wait until flush and close are complete
+	if logger.printToFile {
+		close(logger.logChan)
+		<-logger.done // wait until flush and close are complete
+	}
 }
 
 func ReadLastLine(filePath string) (string, error) {
