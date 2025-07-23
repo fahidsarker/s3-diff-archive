@@ -1,4 +1,4 @@
-package archiver
+package types
 
 type SFile struct {
 	Path  string `json:"path"`

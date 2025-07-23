@@ -7,6 +7,8 @@ import (
 	"strings"
 	"time"
 
+	nTypes "s3-diff-archive/types"
+
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"gopkg.in/yaml.v3"
 )
@@ -14,23 +16,15 @@ import (
 // var SUPPORTED_STORAGE_CLASSES = []string{"STANDARD", "INTELLIGENT_TIERING", "STANDARD_IA", "ONEZONE_IA", "GLACIER", "DEEP_ARCHIVE"}
 
 type BaseConfig struct {
-	AWSAccessKeyID     string   `yaml:"aws_access_key_id"`
-	AWSSecretAccessKey string   `yaml:"aws_secret_access_key"`
-	AWSRegion          string   `yaml:"aws_region"`
-	S3Bucket           string   `yaml:"s3_bucket"`
-	MaxZipSize         int64    `yaml:"max_zip_size"` // in MB
-	S3BasePath         string   `yaml:"s3_base_path"`
-	MasterPassword     string   `yaml:"master_password"`
-	WorkingDir         string   `yaml:"working_dir"`
-	LogsDir            string   `yaml:"logs_dir"`
-	DBConfig           DBConfig `yaml:"db_config"`
-}
-
-type DBConfig struct {
-	Bucket     string `yaml:"bucket"`
-	Region     string `yaml:"region"`
-	Encrypt    bool   `yaml:"encrypt"`
-	S3BasePath string `yaml:"s3_base_path"`
+	AWSAccessKeyID     string `yaml:"aws_access_key_id"`
+	AWSSecretAccessKey string `yaml:"aws_secret_access_key"`
+	AWSRegion          string `yaml:"aws_region"`
+	S3Bucket           string `yaml:"s3_bucket"`
+	MaxZipSize         int64  `yaml:"max_zip_size"` // in MB
+	S3BasePath         string `yaml:"s3_base_path"`
+	MasterPassword     string `yaml:"master_password"`
+	WorkingDir         string `yaml:"working_dir"`
+	LogsDir            string `yaml:"logs_dir"`
 }
 
 type Config struct {
@@ -43,10 +37,9 @@ type Task struct {
 	Dir                string   `yaml:"dir"`
 	SkipExtensions     []string `yaml:"skip_extensions"`
 	storageClassString string   `yaml:"storage_class"`
+	UseChecksum        bool     `yaml:"use_checksum"`
+	Password           string   `yaml:"encryption_key"`
 	StorageClass       types.StorageClass
-	UseChecksum        bool `yaml:"use_checksum"`
-	Encrypt            bool `yaml:"encrypt"`
-	Password           string
 }
 
 type TaskConfig struct {
@@ -63,7 +56,7 @@ func (c *Config) GetTask(taskId string) (*TaskConfig, error) {
 	return nil, fmt.Errorf("task not found")
 }
 
-func GetConfig() Config {
+func GetConfig() *Config {
 	data, err := os.ReadFile("config.yaml")
 	if err != nil {
 		panic(err)
@@ -75,7 +68,7 @@ func GetConfig() Config {
 		panic(err)
 	}
 	cfg.Validate()
-	return cfg
+	return &cfg
 }
 
 func (c *BaseConfig) NewZipFileNameForTask(taskId string, index int, extras ...string) string {
@@ -123,12 +116,6 @@ func (c *Config) Validate() {
 		c.Tasks[i].Validate()
 	}
 
-	if c.DBConfig.Bucket == "" {
-		c.DBConfig.Bucket = c.S3Bucket
-		c.DBConfig.Region = c.AWSRegion
-		c.DBConfig.Encrypt = false
-		c.DBConfig.S3BasePath = c.S3BasePath
-	}
 }
 func (t *Task) Validate() {
 	required(t.ID, "Task id")
@@ -140,11 +127,6 @@ func (t *Task) Validate() {
 		if ext == "" {
 			Err("Task skip extensions cannot be empty")
 		}
-	}
-
-	t.Password = ""
-	if t.Encrypt {
-		t.Password = GenerateRandString(16)
 	}
 
 	if t.storageClassString == "" {
@@ -166,4 +148,15 @@ func (t *Task) Validate() {
 		}
 	}
 
+}
+
+func (t *TaskConfig) CreateS3Config() *nTypes.S3Config {
+	return &nTypes.S3Config{
+		AccessKeyID:     t.AWSAccessKeyID,
+		SecretAccessKey: t.AWSSecretAccessKey,
+		S3BasePath:      fmt.Sprintf("%s/%s", t.S3BasePath, t.ID),
+		StorageClass:    types.StorageClassStandard,
+		Region:          t.AWSRegion,
+		S3Bucket:        t.S3Bucket,
+	}
 }

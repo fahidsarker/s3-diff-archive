@@ -5,40 +5,83 @@ import (
 	"fmt"
 	"os"
 	"path"
-	"s3-diff-archive/logger"
+	"s3-diff-archive/db"
+	lg "s3-diff-archive/logger"
 	"s3-diff-archive/utils"
+	"strings"
 
 	badger "github.com/dgraph-io/badger/v4"
 )
 
-func ZipDiff(config utils.Config) int {
+type ZipDiffTaskResult struct {
+	TaskConfig        *utils.TaskConfig
+	ZippedFiles       int
+	TotalScannedFiles int
+	ArchivesPaths     []string
+	DBZipPath         string
+}
 
-	totalFiles := 0
+func ZipDiff(config *utils.Config) []ZipDiffTaskResult {
 
-	for _, taskConfig := range config.Tasks {
-		logger.Logs.Info("Executing task: " + taskConfig.ID)
+	var results []ZipDiffTaskResult
+
+	for i := range config.Tasks {
+		taskConfig, err := config.GetTask(config.Tasks[i].ID)
+		if err != nil {
+			lg.Logs.Fatal("%s", err.Error())
+		}
+		lg.Logs.Info("Executing task: " + taskConfig.ID)
+
 		dbpath := path.Join(config.WorkingDir, taskConfig.ID, "db")
-		db := GetDB(dbpath)
+		refDBPath := db.FetchRemoteDB(taskConfig)
+		refDB := db.GetDB(refDBPath)
+		writeDB := db.GetDB(dbpath)
+
 		task := NewDiffZipTask(config, taskConfig.ID)
 		stats, _ := os.Stat(task.Dir)
 		if !stats.IsDir() {
-			logger.Logs.Error("baseDir is not a directory")
+			lg.Logs.Error("baseDir is not a directory")
 			panic("baseDir is not a directory")
 		}
 
-		totalFiles += zipIterator(db, task, task.Dir)
+		zipIterator(refDB, writeDB, task, task.Dir)
+
 		println("")
-		logger.Logs.Info("Total Zip file created in task " + task.ID + ": " + fmt.Sprint(len(task.ZipFilePaths)))
-		logger.Logs.Info("Total files in task " + task.ID + ": " + fmt.Sprint(task.TotalScannedFiles) + ", New files: " + fmt.Sprint(task.TotalChangedFiles))
-		db.Close()
+		refDB.Close()
+		writeDB.Close()
 		task.flush()
-		ArchiveDB(dbpath, config.DBConfig.Encrypt, NewZipper(config.NewZipFileNameForTask(task.ID, 0, "_db")))
+
+		lg.Logs.Info("Total Zip file created in task " + task.ID + ": " + fmt.Sprint(len(task.ZipFilePaths)))
+		lg.Logs.Info("Total files in task " + task.ID + ": " + fmt.Sprint(task.TotalScannedFiles) + ", New files: " + fmt.Sprint(task.TotalChangedFiles))
+
+		utils.CopyFile(path.Join(refDBPath, ".history"), path.Join(dbpath, ".history"))
+		zippedDBPath := config.NewZipFileNameForTask(task.ID, 0, "_db")
+		regKepper, err := lg.CreateLogger(path.Join(dbpath, ".history"), false, true)
+		if err != nil {
+			lg.Logs.Fatal("%s", err.Error())
+		}
+		for i := range task.ZipFilePaths {
+			lg.Log(regKepper, utils.FileNameFromPath(task.ZipFilePaths[i]))
+		}
+		regKepper.Close()
+
+		ArchiveDB(dbpath, task.Password, NewZipper(zippedDBPath))
+		result := ZipDiffTaskResult{
+			TaskConfig:        taskConfig,
+			ZippedFiles:       len(task.ZipFilePaths),
+			TotalScannedFiles: task.TotalScannedFiles,
+			ArchivesPaths:     task.ZipFilePaths,
+			DBZipPath:         zippedDBPath,
+		}
+		results = append(results, result)
+		UploadZipDiffResult(result)
+		Cleanup(result)
 	}
 
-	return totalFiles
+	return results
 }
 
-func zipIterator(db *badger.DB, task *DiffZipTask, dirPath string) int {
+func zipIterator(rdb *badger.DB, wdb *badger.DB, task *DiffZipTask, dirPath string) int {
 	files, err := os.ReadDir(dirPath)
 	if err != nil {
 		panic(err)
@@ -46,11 +89,21 @@ func zipIterator(db *badger.DB, task *DiffZipTask, dirPath string) int {
 
 	for _, file := range files {
 		if file.IsDir() {
-			zipIterator(db, task, dirPath+"/"+file.Name())
+			zipIterator(rdb, wdb, task, dirPath+"/"+file.Name())
 			// println("Total zipped files: For dir: ", file.Name(), totalZippedFiles)
 		} else {
 			// ignore .DS_Store files
 			if file.Name() == ".DS_Store" {
+				continue
+			}
+			skip := false
+			for _, skipExt := range task.SkipExtensions {
+				if strings.HasSuffix(file.Name(), skipExt) {
+					skip = true
+					break
+				}
+			}
+			if skip {
 				continue
 			}
 			task.TotalScannedFiles++
@@ -58,8 +111,8 @@ func zipIterator(db *badger.DB, task *DiffZipTask, dirPath string) int {
 			if err != nil {
 				panic(err)
 			}
-			fileUpdated := hasFileUpdated(db, dirPath+"/"+file.Name(), stats)
-			logger.ScanLog.Info(task.ID + "\t" + dirPath + "/" + file.Name() + ", File Updated: " + fmt.Sprint(fileUpdated) + ", Size: " + fmt.Sprint(stats.Size()))
+			fileUpdated := db.HasFileUpdated(rdb, wdb, dirPath+"/"+file.Name(), stats)
+			lg.ScanLog.Info(task.ID + "\t" + dirPath + "/" + file.Name() + ", File Updated: " + fmt.Sprint(fileUpdated) + ", Size: " + fmt.Sprint(stats.Size()))
 			if fileUpdated {
 				task.TotalChangedFiles++
 				task.Zip(dirPath+"/"+file.Name(), stats)
@@ -70,16 +123,13 @@ func zipIterator(db *badger.DB, task *DiffZipTask, dirPath string) int {
 	return task.zipper.fileCounts
 }
 
-func ArchiveDB(dbPath string, encrypt bool, zipper *Zipper) {
+func ArchiveDB(dbPath string, encryptPass string, zipper *Zipper) {
 	files, err := os.ReadDir(dbPath)
-	password := ""
-	if encrypt {
-		// password = utils.GenerateRandString(16)
-	}
+
 	if err != nil {
 		panic(err)
 	}
-	logger.Logs.Info("Total files in DB: " + fmt.Sprint(len(files)))
+	lg.Logs.Info("%s", "Total files in DB: "+fmt.Sprint(len(files)))
 	for _, file := range files {
 		if file.IsDir() {
 			continue
@@ -90,7 +140,8 @@ func ArchiveDB(dbPath string, encrypt bool, zipper *Zipper) {
 			panic(err)
 		}
 		// utils.ZipFile(filePath, stats, zipper.zw, password)
-		zipper.zip(filePath, file.Name(), stats, password)
+		// println(file.Name())
+		zipper.zip(filePath, file.Name(), stats, encryptPass)
 	}
 
 	zipper.flush()

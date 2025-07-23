@@ -6,9 +6,12 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	lg "s3-diff-archive/logger"
 	"strings"
 
 	"bytes"
+
+	nTypes "s3-diff-archive/types"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
@@ -17,44 +20,10 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 )
 
-// // UploadFileToS3 uploads a file to S3 with the specified bucket, key, and storage class.
-// func UploadFileToS3(ctx context.Context, filePath, bucketName, key string, storageClass types.StorageClass) error {
-// 	// Load AWS config from environment or shared config
-// 	cfg, err := config.LoadDefaultConfig(ctx)
-// 	if err != nil {
-// 		return fmt.Errorf("unable to load AWS config: %w", err)
-// 	}
-
-// 	// Open the file
-// 	file, err := os.Open(filePath)
-// 	if err != nil {
-// 		return fmt.Errorf("unable to open file %s: %w", filePath, err)
-// 	}
-// 	defer file.Close()
-
-// 	// Create the S3 client
-// 	s3Client := s3.NewFromConfig(cfg)
-
-// 	// Upload the file
-// 	_, err = s3Client.PutObject(ctx, &s3.PutObjectInput{
-// 		Bucket:       aws.String(bucketName),
-// 		Key:          aws.String(key),
-// 		Body:         file,
-// 		StorageClass: storageClass,
-// 	})
-// 	if err != nil {
-// 		return fmt.Errorf("failed to upload file: %w", err)
-// 	}
-
-// 	fmt.Printf("File %s uploaded to s3://%s/%s with storage class %s\n", filepath.Base(filePath), bucketName, key, storageClass)
-// 	return nil
-// }
-
-// const multipartThreshold = 100 * 1024 * 1024 // 100 MB
-const multipartThreshold = 10 * 1024 * 1024 // 10 MB
+const multipartThreshold = 100 * 1024 * 1024 // 100 MB
 
 // UploadFileToS3 uploads a file to S3 using PutObject or Multipart depending on size.
-func UploadFileToS3(cnfg *S3Config, ctx context.Context, nKey string, filePath string) error {
+func UploadFileToS3(cnfg *nTypes.S3Config, ctx context.Context, nKey string, filePath string) error {
 	cfg, err := config.LoadDefaultConfig(ctx,
 		config.WithRegion(cnfg.Region),
 		config.WithCredentialsProvider(
@@ -67,6 +36,8 @@ func UploadFileToS3(cnfg *S3Config, ctx context.Context, nKey string, filePath s
 
 	cnfg.S3BasePath = strings.TrimSuffix(cnfg.S3BasePath, "/")
 	key := cnfg.S3BasePath + "/" + nKey
+
+	lg.Logs.Info("Uploading: %s to s3://%s/%s", filePath, cnfg.S3Bucket, key)
 	// Open file
 	file, err := os.Open(filePath)
 	if err != nil {
@@ -79,10 +50,12 @@ func UploadFileToS3(cnfg *S3Config, ctx context.Context, nKey string, filePath s
 	if err != nil {
 		return fmt.Errorf("unable to stat file: %w", err)
 	}
+	lg.Logs.Info("File size: %d", fileInfo.Size())
 	fileSize := fileInfo.Size()
 
 	// Use Multipart Upload if file is large
 	if fileSize > multipartThreshold {
+		lg.Logs.Info("Using multipart upload")
 		return multipartUpload(ctx, s3Client, file, fileSize, cnfg.S3Bucket, key, cnfg.StorageClass)
 	}
 
@@ -102,7 +75,7 @@ func UploadFileToS3(cnfg *S3Config, ctx context.Context, nKey string, filePath s
 }
 
 func multipartUpload(ctx context.Context, client *s3.Client, file *os.File, fileSize int64, bucket, key string, sc types.StorageClass) (err error) {
-	const partSize = int64(10 * 1024 * 1024) // 10 MB
+	const partSize = int64(90 * 1024 * 1024) // 90 MB
 
 	var parts []types.CompletedPart
 	partNumber := int32(1)
@@ -164,7 +137,7 @@ func multipartUpload(ctx context.Context, client *s3.Client, file *os.File, file
 		})
 
 		// fmt.Printf("Uploaded part %d/%d\n", partNumber, (fileSize+partSize-1)/partSize)
-		fmt.Printf("Uploaded part %d/%d (%.2f%%)\n", partNumber, totalParts, float64(offset+curPartSize)*100/float64(fileSize))
+		lg.Logs.Info("\rUploading (%s) part %d/%d (%.2f%%)\n", key, partNumber, totalParts, float64(offset+curPartSize)*100/float64(fileSize))
 		partNumber++
 	}
 
@@ -187,7 +160,7 @@ func multipartUpload(ctx context.Context, client *s3.Client, file *os.File, file
 }
 
 // DownloadFileFromS3 downloads a file from S3 and saves it to the specified local path.
-func DownloadFileFromS3(cnfg *S3Config, ctx context.Context, nKey, destinationPath string) (err error) {
+func DownloadFileFromS3(cnfg *nTypes.S3Config, ctx context.Context, nKey, destinationPath string) (err error) {
 	cfg, err := config.LoadDefaultConfig(ctx,
 		config.WithRegion(cnfg.Region),
 		config.WithCredentialsProvider(
@@ -201,19 +174,27 @@ func DownloadFileFromS3(cnfg *S3Config, ctx context.Context, nKey, destinationPa
 	cnfg.S3BasePath = strings.TrimSuffix(cnfg.S3BasePath, "/")
 	key := cnfg.S3BasePath + "/" + nKey
 
-	println("Downloading: ", key)
+	lg.Logs.Info("Downloading: " + key)
 
 	// Get object from S3
-	fmt.Println("Calling GetObject...")
 	resp, err := s3Client.GetObject(ctx, &s3.GetObjectInput{
 		Bucket: &cnfg.S3Bucket,
 		Key:    &key,
 	})
-	fmt.Println("GetObject done")
-	fmt.Printf("Content-Length: %d\n", resp.ContentLength)
+
+	// check if file exists
 	if err != nil {
-		return fmt.Errorf("failed to get object: %w", err)
+		if strings.Contains(err.Error(), "StatusCode: 404") {
+			lg.Logs.Warn("S3 File not found: " + key)
+			return fmt.Errorf("not-found")
+		}
+		lg.Logs.Error("Error downloading file: " + key + ", Error: " + err.Error())
+		return err
 	}
+
+	lg.Logs.Info("Downloaded: " + key)
+	lg.Logs.Info("Size: " + fmt.Sprint(resp.ContentLength))
+
 	defer resp.Body.Close()
 
 	// Ensure the directory exists

@@ -1,10 +1,13 @@
 package utils
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"math/rand"
 	"os"
+	"path/filepath"
 	"time"
 )
 
@@ -80,4 +83,36 @@ func IsWorkingDirValid(workingDir string) bool {
 func NowTime() string {
 	// 2025-07-22 12:20:44
 	return time.Now().Format("2006-01-02 15:04:05")
+}
+
+func ToJson(data any) string {
+	dataJson, err := json.Marshal(data)
+	if err != nil {
+		panic(err)
+	}
+	return string(dataJson)
+}
+
+func FileNameFromPath(path string) string {
+	return filepath.Base(path)
+}
+
+func CopyFile(src, dst string) error {
+	in, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer in.Close()
+
+	out, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+
+	_, err = io.Copy(out, in)
+	if err != nil {
+		return err
+	}
+	return out.Close()
 }

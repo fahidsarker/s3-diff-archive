@@ -14,7 +14,7 @@ type DiffZipTask struct {
 	ZipFilePaths       []string
 }
 
-func NewDiffZipTask(config utils.Config, taskId string) *DiffZipTask {
+func NewDiffZipTask(config *utils.Config, taskId string) *DiffZipTask {
 	task, err := config.GetTask(taskId)
 	if err != nil {
 		panic(err)

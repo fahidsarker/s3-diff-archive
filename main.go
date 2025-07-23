@@ -1,20 +1,22 @@
 package main
 
 import (
+	"fmt"
 	"s3-diff-archive/archiver"
-	l "s3-diff-archive/logger"
+	lg "s3-diff-archive/logger"
 	"s3-diff-archive/utils"
 )
 
 func main() {
 	config := utils.GetConfig()
-	err := l.InitLoggers(&config)
+	err := lg.InitLoggers(config)
 	if err != nil {
 		panic(err)
 	}
-	defer l.ScanLog.Close()
-	defer l.Logs.Close()
-	// defer l.DiffLog.Close()
+	defer lg.CloseGlobalLoggers()
+
+	// fmt.Println(utils.ToJson(config))
 	zipped := archiver.ZipDiff(config)
-	println("Total zipped files: ", zipped)
+	fmt.Println(utils.ToJson(zipped))
+
 }

@@ -1,6 +1,8 @@
-package s3
+package types
 
-import "github.com/aws/aws-sdk-go-v2/service/s3/types"
+import (
+	"github.com/aws/aws-sdk-go-v2/service/s3/types"
+)
 
 type S3Config struct {
 	AccessKeyID     string

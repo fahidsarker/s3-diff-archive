@@ -1,10 +1,11 @@
-package logger
+package lg
 
 import (
 	"bufio"
 	"bytes"
 	"fmt"
 	"os"
+	"s3-diff-archive/constants"
 	"s3-diff-archive/utils"
 )
 
@@ -15,14 +16,6 @@ type BufferedLogger struct {
 	printToConsole bool
 	printToFile    bool
 }
-
-const (
-	Reset  = "\x1b[0m"
-	Red    = "\x1b[31m"
-	Green  = "\x1b[32m"
-	Yellow = "\x1b[33m"
-	Blue   = "\x1b[34m"
-)
 
 // CreateLogger sets up a buffered logger writing to the specified file path.
 func CreateLogger(path string, printToConsole bool, printToFile bool) (*BufferedLogger, error) {
@@ -75,34 +68,43 @@ func FormatedLog(logger *BufferedLogger, level string, message string) {
 		prefix := ""
 		switch level {
 		case "INFO":
-			prefix = Green
+			prefix = constants.Green
 		case "ERROR":
-			prefix = Red
+			prefix = constants.Red
 		case "WARN":
-			prefix = Yellow
+			prefix = constants.Yellow
 		default:
 			prefix = ""
 		}
 
-		fmt.Printf("\r%s%s%s\n", prefix, toLog, Reset)
+		fmt.Printf("\r%s%s%s\n", prefix, toLog, constants.Reset)
 	}
 	Log(logger, toLog)
 }
 
-func (logger *BufferedLogger) Info(message string) {
-	FormatedLog(logger, "INFO", message)
+func (logger *BufferedLogger) Info(message string, args ...any) {
+	FormatedLog(logger, "INFO", fmt.Sprintf(message, args...))
 }
 
-func (logger *BufferedLogger) Log(message string) {
-	FormatedLog(logger, "Log", message)
+func (logger *BufferedLogger) Log(message string, args ...any) {
+	FormatedLog(logger, "Log", fmt.Sprintf(message, args...))
 }
 
-func (logger *BufferedLogger) Error(message string) {
-	FormatedLog(logger, "ERROR", message)
+func (logger *BufferedLogger) Error(message string, args ...any) {
+	FormatedLog(logger, "ERROR", fmt.Sprintf(message, args...))
+}
+func (logger *BufferedLogger) ElogR(message string, args ...any) error {
+	msg := fmt.Sprintf(message, args...)
+	FormatedLog(logger, "ERROR", msg)
+	return fmt.Errorf(message, args...)
+}
+func (logger *BufferedLogger) Fatal(message string, args ...any) {
+	FormatedLog(logger, "ERROR", fmt.Sprintf(message, args...))
+	os.Exit(1)
 }
 
-func (logger *BufferedLogger) Warn(message string) {
-	FormatedLog(logger, "WARN", message)
+func (logger *BufferedLogger) Warn(message string, args ...any) {
+	FormatedLog(logger, "WARN", fmt.Sprintf(message, args...))
 }
 
 func (logger *BufferedLogger) Close() {

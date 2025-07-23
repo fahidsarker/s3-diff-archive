@@ -1,4 +1,4 @@
-package logger
+package lg
 
 import (
 	"fmt"
@@ -15,11 +15,12 @@ var Logs *BufferedLogger
 func InitLoggers(config *utils.Config) error {
 	defPrintToFile := config.LogsDir != ""
 	if config.LogsDir != "" {
-		// make sure logs dir exists
+		// make sure logs dir exists // make all dirs in path
 		if _, err := os.Stat(config.LogsDir); os.IsNotExist(err) {
-			err := os.Mkdir(config.LogsDir, 0755)
+			// Change os.Mkdir to os.MkdirAll
+			err := os.MkdirAll(config.LogsDir, 0755) // This will create all intermediate directories
 			if err != nil {
-				return err
+				return err // Handle the error (e.g., permissions issues)
 			}
 		}
 	}
@@ -34,4 +35,9 @@ func InitLoggers(config *utils.Config) error {
 		return err
 	}
 	return nil
+}
+
+func CloseGlobalLoggers() {
+	CloseLogger(ScanLog)
+	CloseLogger(Logs)
 }
