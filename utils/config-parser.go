@@ -151,12 +151,12 @@ func (t *Task) Validate() {
 
 }
 
-func (t *TaskConfig) CreateS3Config() *nTypes.S3Config {
+func (t *TaskConfig) CreateS3Config(storageCls types.StorageClass) *nTypes.S3Config {
 	return &nTypes.S3Config{
 		AccessKeyID:     t.AWSAccessKeyID,
 		SecretAccessKey: t.AWSSecretAccessKey,
 		S3BasePath:      fmt.Sprintf("%s/%s", t.S3BasePath, t.ID),
-		StorageClass:    types.StorageClassStandard,
+		StorageClass:    storageCls,
 		Region:          t.AWSRegion,
 		S3Bucket:        t.S3Bucket,
 	}

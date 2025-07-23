@@ -10,6 +10,8 @@ import (
 	"s3-diff-archive/types"
 	"s3-diff-archive/utils"
 
+	s3Types "github.com/aws/aws-sdk-go-v2/service/s3/types"
+
 	badger "github.com/dgraph-io/badger/v4"
 )
 
@@ -26,7 +28,7 @@ func GetDB(dbPath string) *badger.DB {
 func FetchRemoteDB(task *utils.TaskConfig) string {
 	localDBPath := path.Join(task.WorkingDir, task.ID, "db.zip")
 	refDBPath := path.Join(task.WorkingDir, task.ID, "db-ref")
-	err := s3.DownloadFileFromS3(task.CreateS3Config(), context.TODO(), "db.zip", localDBPath)
+	err := s3.DownloadFileFromS3(task.CreateS3Config(s3Types.StorageClassStandard), context.TODO(), "db.zip", localDBPath)
 	if err != nil {
 		if err.Error() == "not-found" {
 			lg.Logs.Warn("Remote DB not found, Treating as a new backup task")
