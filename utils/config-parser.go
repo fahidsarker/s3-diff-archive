@@ -56,8 +56,9 @@ func (c *Config) GetTask(taskId string) (*TaskConfig, error) {
 	return nil, fmt.Errorf("task not found")
 }
 
-func GetConfig() *Config {
-	data, err := os.ReadFile("config.yaml")
+func GetConfig(path string) *Config {
+
+	data, err := os.ReadFile(path)
 	if err != nil {
 		panic(err)
 	}
