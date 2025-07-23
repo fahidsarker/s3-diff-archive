@@ -35,7 +35,7 @@ type Config struct {
 type Task struct {
 	ID                 string   `yaml:"id"`
 	Dir                string   `yaml:"dir"`
-	SkipExtensions     []string `yaml:"skip_extensions"`
+	Excludes           []string `yaml:"exclude"`
 	storageClassString string   `yaml:"storage_class"`
 	UseChecksum        bool     `yaml:"use_checksum"`
 	Password           string   `yaml:"encryption_key"`
@@ -121,12 +121,12 @@ func (c *Config) Validate() {
 func (t *Task) Validate() {
 	required(t.ID, "Task id")
 	required(t.Dir, fmt.Sprintf("Task - %s base dir", t.ID))
-	if t.SkipExtensions == nil {
-		t.SkipExtensions = []string{}
+	if t.Excludes == nil {
+		t.Excludes = []string{}
 	}
-	for _, ext := range t.SkipExtensions {
+	for _, ext := range t.Excludes {
 		if ext == "" {
-			Err("Task skip extensions cannot be empty")
+			Err("Task Exclude Regex cannot be empty")
 		}
 	}
 

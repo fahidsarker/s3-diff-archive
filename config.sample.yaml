@@ -22,10 +22,10 @@ tasks:
     # Default is DEEP_ARCHIVE
     # DB is always stored in STANDARD
     storage_class: STANDARD
+    exclude: [".DS_File", "**/zlgKucVEKcZED/CYJThLQRCgKaAdCU/**/*.*"]
     encryption_key: PASSWORD # choose wisely. can not change and required for restore
 
   - id: videos
     dir: ./test-videos
     storage_class: STANDARD
-    skip_extensions: [".DSFile"] # .DSFile is ignored by defaults
     # no encryption

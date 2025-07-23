@@ -74,8 +74,8 @@ func ZipDiff(config *utils.Config) []ZipDiffTaskResult {
 			DBZipPath:         zippedDBPath,
 		}
 		results = append(results, result)
-		UploadZipDiffResult(result)
-		Cleanup(result)
+		// UploadZipDiffResult(result)
+		// Cleanup(result)
 	}
 
 	return results
@@ -92,13 +92,15 @@ func zipIterator(rdb *badger.DB, wdb *badger.DB, task *DiffZipTask, dirPath stri
 			zipIterator(rdb, wdb, task, dirPath+"/"+file.Name())
 			// println("Total zipped files: For dir: ", file.Name(), totalZippedFiles)
 		} else {
+			task.TotalScannedFiles++
+
 			// ignore .DS_Store files
-			if file.Name() == ".DS_Store" {
-				continue
-			}
+			filePath := dirPath + "/" + file.Name()
 			skip := false
-			for _, skipExt := range task.SkipExtensions {
-				if strings.HasSuffix(file.Name(), skipExt) {
+			for _, patterm := range task.Excludes {
+				if utils.MatchPattern(patterm, filePath) {
+					task.TotalSkippedFiles++
+					lg.Logs.Warn("Skipping file %s due to exclude pattern %s", filePath, patterm)
 					skip = true
 					break
 				}
@@ -106,19 +108,24 @@ func zipIterator(rdb *badger.DB, wdb *badger.DB, task *DiffZipTask, dirPath stri
 			if skip {
 				continue
 			}
-			task.TotalScannedFiles++
 			stats, err := os.Stat(dirPath + "/" + file.Name())
 			if err != nil {
 				panic(err)
 			}
-			fileUpdated := db.HasFileUpdated(rdb, wdb, dirPath+"/"+file.Name(), stats)
+
+			fileName := dirPath + "/" + file.Name()
+			if strings.HasPrefix(filePath, task.Task.Dir) {
+				// remove baseDir from filePath
+				fileName = strings.Replace(filePath, task.Task.Dir, "", 1)
+			}
+			fileUpdated := db.HasFileUpdated(rdb, wdb, filePath, fileName, stats)
 			lg.ScanLog.Info(task.ID + "\t" + dirPath + "/" + file.Name() + ", File Updated: " + fmt.Sprint(fileUpdated) + ", Size: " + fmt.Sprint(stats.Size()))
 			if fileUpdated {
 				task.TotalChangedFiles++
 				task.Zip(dirPath+"/"+file.Name(), stats)
 			}
 		}
-		fmt.Printf("\r>>> Scanned: %d files, New: %d files, Zipped: %d files...", task.TotalScannedFiles, task.TotalChangedFiles, task.TotalChangedFiles)
+		fmt.Printf("\r>>> Scanned: %d files, New: %d files, Skipped: %d files, Zipped: %d files...", task.TotalScannedFiles, task.TotalChangedFiles, task.TotalSkippedFiles, task.TotalChangedFiles)
 	}
 	return task.zipper.fileCounts
 }

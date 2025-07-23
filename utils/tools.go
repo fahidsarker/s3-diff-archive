@@ -9,6 +9,8 @@ import (
 	"os"
 	"path/filepath"
 	"time"
+
+	"github.com/bmatcuk/doublestar/v4"
 )
 
 func Where[T any](list []T, predicate func(T) bool) []T {
@@ -115,4 +117,14 @@ func CopyFile(src, dst string) error {
 		return err
 	}
 	return out.Close()
+}
+
+func MatchPattern(pattern string, path string) bool {
+
+	match, err := doublestar.PathMatch(pattern, path)
+	if err != nil {
+		panic(err)
+	}
+
+	return match
 }

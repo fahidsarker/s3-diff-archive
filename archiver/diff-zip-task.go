@@ -12,6 +12,7 @@ type DiffZipTask struct {
 	zipper             *Zipper
 	TotalScannedFiles  int
 	TotalChangedFiles  int
+	TotalSkippedFiles  int
 	ZipFilePaths       []string
 }
 

@@ -4,20 +4,27 @@ import (
 	"fmt"
 	"os"
 	"s3-diff-archive/archiver"
+	"s3-diff-archive/db"
 	lg "s3-diff-archive/logger"
 	"s3-diff-archive/utils"
 )
 
+func archive(config *utils.Config) {
+	// fmt.Println(utils.ToJson(config))
+	archiver.ZipDiff(config)
+
+	lg.Logs.Info("✔︎✔︎ DONE")
+	// fmt.Println(utils.ToJson(zipped))
+}
+
 func main() {
+
 	args := os.Args
 	if len(args) < 3 {
 		fmt.Println("Usage: s3-diff-archive <command> <config-file-path>")
 		os.Exit(1)
 	}
-	if args[1] != "archive" {
-		fmt.Println("Command not yet supported")
-		os.Exit(1)
-	}
+
 	config := utils.GetConfig(args[2])
 	err := lg.InitLoggers(config)
 	if err != nil {
@@ -25,10 +32,27 @@ func main() {
 	}
 	defer lg.CloseGlobalLoggers()
 
-	// fmt.Println(utils.ToJson(config))
-	archiver.ZipDiff(config)
+	switch args[1] {
+	case "archive":
+		archive(config)
+		break
+	case "view":
+		if len(args) < 5 {
+			fmt.Println("Usage: s3-diff-archive view <config-file-path> --task <task-id>")
+			os.Exit(1)
+		}
+		taskId := args[4]
+		task, err := config.GetTask(taskId)
+		if err != nil {
+			panic(err)
+		}
+		db.ViewDB(task)
+		break
 
-	lg.Logs.Info("✔︎✔︎ DONE")
-	// fmt.Println(utils.ToJson(zipped))
+	default:
+		fmt.Println("Unknown command")
+		os.Exit(1)
+
+	}
 
 }
