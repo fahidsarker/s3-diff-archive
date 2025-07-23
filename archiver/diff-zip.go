@@ -37,6 +37,8 @@ func ZipDiff(config *utils.Config) []ZipDiffTaskResult {
 		refDB := db.GetDB(refDBPath)
 		writeDB := db.GetDB(dbpath)
 
+		utils.CopyFile(path.Join(refDBPath, ".history"), path.Join(dbpath, ".history"))
+
 		task := NewDiffZipTask(config, taskConfig.ID)
 		stats, _ := os.Stat(task.Dir)
 		if !stats.IsDir() {
@@ -54,7 +56,6 @@ func ZipDiff(config *utils.Config) []ZipDiffTaskResult {
 		lg.Logs.Info("Total Zip file created in task " + task.ID + ": " + fmt.Sprint(len(task.ZipFilePaths)))
 		lg.Logs.Info("Total files in task " + task.ID + ": " + fmt.Sprint(task.TotalScannedFiles) + ", New files: " + fmt.Sprint(task.TotalChangedFiles))
 
-		utils.CopyFile(path.Join(refDBPath, ".history"), path.Join(dbpath, ".history"))
 		zippedDBPath := config.NewZipFileNameForTask(task.ID, 0, "_db")
 		regKepper, err := lg.CreateLogger(path.Join(dbpath, ".history"), false, true)
 		if err != nil {
@@ -74,8 +75,8 @@ func ZipDiff(config *utils.Config) []ZipDiffTaskResult {
 			DBZipPath:         zippedDBPath,
 		}
 		results = append(results, result)
-		// UploadZipDiffResult(result)
-		// Cleanup(result)
+		UploadZipDiffResult(result)
+		Cleanup(result)
 	}
 
 	return results
