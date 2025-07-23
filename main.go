@@ -26,7 +26,9 @@ func main() {
 	defer lg.CloseGlobalLoggers()
 
 	// fmt.Println(utils.ToJson(config))
-	zipped := archiver.ZipDiff(config)
-	fmt.Println(utils.ToJson(zipped))
+	archiver.ZipDiff(config)
+
+	lg.Logs.Info("✔︎✔︎ DONE")
+	// fmt.Println(utils.ToJson(zipped))
 
 }

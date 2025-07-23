@@ -10,6 +10,7 @@ import (
 )
 
 func UploadZipDiffResult(result ZipDiffTaskResult) {
+
 	// err := s3.UploadFileToS3(result.TaskConfig.CreateS3Config(), context.TODO(), result.DBZipPath, result.ArchivesPaths)
 
 	for i := range result.ArchivesPaths {

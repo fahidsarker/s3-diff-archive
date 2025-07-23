@@ -2,6 +2,7 @@ package archiver
 
 import (
 	"os"
+	"path"
 	lg "s3-diff-archive/logger"
 )
 
@@ -18,4 +19,7 @@ func Cleanup(result ZipDiffTaskResult) {
 			lg.Logs.Error("Error Cleaning up (%s) :%s", result.DBZipPath, err.Error())
 		}
 	}
+
+	_ = os.RemoveAll(path.Join(result.TaskConfig.WorkingDir, result.TaskConfig.ID, "db"))
+	_ = os.RemoveAll(path.Join(result.TaskConfig.WorkingDir, result.TaskConfig.ID, "db-ref"))
 }

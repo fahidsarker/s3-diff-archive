@@ -3,6 +3,7 @@ package archiver
 import (
 	"os"
 	"s3-diff-archive/utils"
+	"strings"
 )
 
 type DiffZipTask struct {
@@ -49,7 +50,12 @@ func (c *DiffZipTask) nZipper(newFileStat os.FileInfo) *Zipper {
 }
 
 func (c *DiffZipTask) Zip(filePath string, fileStat os.FileInfo) {
-	c.nZipper(fileStat).zip(filePath, filePath, fileStat, c.Task.Password)
+	fileName := filePath
+	if strings.HasPrefix(filePath, c.Task.Dir) {
+		// remove baseDir from filePath
+		fileName = strings.Replace(filePath, c.Task.Dir, "", 1)
+	}
+	c.nZipper(fileStat).zip(filePath, fileName, fileStat, c.Task.Password)
 }
 
 func (c *DiffZipTask) flush() {
