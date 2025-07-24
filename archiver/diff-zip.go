@@ -30,7 +30,7 @@ func ZipDiff(config *utils.Config) []ZipDiffTaskResult {
 		if err != nil {
 			lg.Logs.Fatal("%s", err.Error())
 		}
-		lg.Logs.Info("Executing task: " + taskConfig.ID)
+		lg.Logs.Info("Executing task: %s", taskConfig.ID)
 
 		dbpath := path.Join(config.WorkingDir, taskConfig.ID, "db")
 		refDBPath := db.FetchRemoteDB(taskConfig)
@@ -53,8 +53,8 @@ func ZipDiff(config *utils.Config) []ZipDiffTaskResult {
 		writeDB.Close()
 		task.flush()
 
-		lg.Logs.Info("Total Zip file created in task " + task.ID + ": " + fmt.Sprint(len(task.ZipFilePaths)))
-		lg.Logs.Info("Total files in task " + task.ID + ": " + fmt.Sprint(task.TotalScannedFiles) + ", New files: " + fmt.Sprint(task.TotalChangedFiles))
+		lg.Logs.Info("Total Zip file created in task %s: %d", task.ID, len(task.ZipFilePaths))
+		lg.Logs.Info("Total files in task %s: %d, New files: %d", task.ID, task.TotalScannedFiles, task.TotalChangedFiles)
 
 		zippedDBPath := config.NewZipFileNameForTask(task.ID, 0, "_db")
 		regKepper, err := lg.CreateLogger(path.Join(dbpath, ".history"), false, true)
@@ -104,6 +104,7 @@ func zipIterator(rdb *badger.DB, wdb *badger.DB, task *DiffZipTask, dirPath stri
 				if utils.MatchPattern(patterm, relativeFilePath) {
 					task.TotalSkippedFiles++
 					lg.Logs.Warn("Skipping file %s due to exclude pattern %s", filePath, patterm)
+					lg.ScanLog.Info("Slipped file: %s, due to exclude pattern %s", filePath, patterm)
 					skip = true
 					break
 				}
@@ -121,7 +122,7 @@ func zipIterator(rdb *badger.DB, wdb *badger.DB, task *DiffZipTask, dirPath stri
 				relativeFilePath = strings.Replace(filePath, task.Task.Dir, "", 1)
 			}
 			fileUpdated := db.HasFileUpdated(rdb, wdb, filePath, relativeFilePath, stats)
-			lg.ScanLog.Info(task.ID + "\t" + relativeFilePath + ", File Updated: " + fmt.Sprint(fileUpdated) + ", Size: " + fmt.Sprint(stats.Size()))
+			lg.ScanLog.Info("%s\t%s, File Updated: %t, Size: %d", task.ID, relativeFilePath, fileUpdated, stats.Size())
 			if fileUpdated {
 				task.TotalChangedFiles++
 				task.Zip(dirPath+"/"+file.Name(), stats)

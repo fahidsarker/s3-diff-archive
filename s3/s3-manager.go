@@ -70,7 +70,7 @@ func UploadFileToS3(cnfg *nTypes.S3Config, ctx context.Context, nKey string, fil
 		return fmt.Errorf("PutObject failed: %w", err)
 	}
 
-	fmt.Printf("Uploaded (simple): %s -> s3://%s/%s\n", filePath, cnfg.S3Bucket, key)
+	lg.Logs.Log("Uploaded (simple): %s -> s3://%s/%s\n", filePath, cnfg.S3Bucket, key)
 	return nil
 }
 
@@ -136,7 +136,6 @@ func multipartUpload(ctx context.Context, client *s3.Client, file *os.File, file
 			PartNumber: aws.Int32(partNumber),
 		})
 
-		// fmt.Printf("Uploaded part %d/%d\n", partNumber, (fileSize+partSize-1)/partSize)
 		lg.Logs.Info("\rUploading (%s) part %d/%d (%.2f%%)\n", key, partNumber, totalParts, float64(offset+curPartSize)*100/float64(fileSize))
 		partNumber++
 	}
@@ -155,7 +154,7 @@ func multipartUpload(ctx context.Context, client *s3.Client, file *os.File, file
 		return fmt.Errorf("failed to complete multipart upload: %w", err)
 	}
 
-	fmt.Printf("Uploaded (multipart): %s -> s3://%s/%s\n", file.Name(), bucket, key)
+	lg.Logs.Log("Uploaded (multipart): %s -> s3://%s/%s\n", file.Name(), bucket, key)
 	return nil
 }
 
@@ -174,7 +173,7 @@ func DownloadFileFromS3(cnfg *nTypes.S3Config, ctx context.Context, nKey, destin
 	cnfg.S3BasePath = strings.TrimSuffix(cnfg.S3BasePath, "/")
 	key := cnfg.S3BasePath + "/" + nKey
 
-	lg.Logs.Info("Downloading: " + key)
+	lg.Logs.Info("Downloading: %s", key)
 
 	// Get object from S3
 	resp, err := s3Client.GetObject(ctx, &s3.GetObjectInput{
@@ -185,15 +184,15 @@ func DownloadFileFromS3(cnfg *nTypes.S3Config, ctx context.Context, nKey, destin
 	// check if file exists
 	if err != nil {
 		if strings.Contains(err.Error(), "StatusCode: 404") {
-			lg.Logs.Warn("S3 File not found: " + key)
+			lg.Logs.Warn("S3 File not found: %s", key)
 			return fmt.Errorf("not-found")
 		}
-		lg.Logs.Error("Error downloading file: " + key + ", Error: " + err.Error())
+		lg.Logs.Error("Error downloading file: %s, Error: %s", key, err.Error())
 		return err
 	}
 
-	lg.Logs.Info("Downloaded: " + key)
-	lg.Logs.Info("Size: " + fmt.Sprint(resp.ContentLength))
+	lg.Logs.Info("✔︎ Downloaded: %s", key)
+	lg.Logs.Info("Size: %d", resp.ContentLength)
 
 	defer resp.Body.Close()
 
@@ -215,6 +214,6 @@ func DownloadFileFromS3(cnfg *nTypes.S3Config, ctx context.Context, nKey, destin
 		return fmt.Errorf("failed to write file: %w", err)
 	}
 
-	fmt.Printf("Downloaded s3://%s/%s to %s\n", cnfg.S3Bucket, key, destinationPath)
+	lg.Logs.Log("Downloaded s3://%s/%s to %s\n", cnfg.S3Bucket, key, destinationPath)
 	return nil
 }

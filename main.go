@@ -10,11 +10,8 @@ import (
 )
 
 func archive(config *utils.Config) {
-	// fmt.Println(utils.ToJson(config))
 	archiver.ZipDiff(config)
-
 	lg.Logs.Info("✔︎✔︎ DONE")
-	// fmt.Println(utils.ToJson(zipped))
 }
 
 func main() {
@@ -35,7 +32,6 @@ func main() {
 	switch args[1] {
 	case "archive":
 		archive(config)
-		break
 	case "view":
 		if len(args) < 5 {
 			fmt.Println("Usage: s3-diff-archive view <config-file-path> --task <task-id>")
@@ -47,8 +43,6 @@ func main() {
 			panic(err)
 		}
 		db.ViewDB(task)
-		break
-
 	default:
 		fmt.Println("Unknown command")
 		os.Exit(1)

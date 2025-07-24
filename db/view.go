@@ -24,7 +24,7 @@ func ViewDB(task *utils.TaskConfig) {
 			if err != nil {
 				return err
 			}
-			lg.Logs.Info(string(value))
+			lg.Logs.Info("%s", string(value))
 		}
 		return nil
 	})
