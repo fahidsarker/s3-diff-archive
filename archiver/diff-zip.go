@@ -97,9 +97,11 @@ func zipIterator(rdb *badger.DB, wdb *badger.DB, task *DiffZipTask, dirPath stri
 
 			// ignore .DS_Store files
 			filePath := dirPath + "/" + file.Name()
+			relativeFilePath := dirPath + "/" + file.Name()
+
 			skip := false
 			for _, patterm := range task.Excludes {
-				if utils.MatchPattern(patterm, filePath) {
+				if utils.MatchPattern(patterm, relativeFilePath) {
 					task.TotalSkippedFiles++
 					lg.Logs.Warn("Skipping file %s due to exclude pattern %s", filePath, patterm)
 					skip = true
@@ -114,13 +116,12 @@ func zipIterator(rdb *badger.DB, wdb *badger.DB, task *DiffZipTask, dirPath stri
 				panic(err)
 			}
 
-			fileName := dirPath + "/" + file.Name()
 			if strings.HasPrefix(filePath, task.Task.Dir) {
 				// remove baseDir from filePath
-				fileName = strings.Replace(filePath, task.Task.Dir, "", 1)
+				relativeFilePath = strings.Replace(filePath, task.Task.Dir, "", 1)
 			}
-			fileUpdated := db.HasFileUpdated(rdb, wdb, filePath, fileName, stats)
-			lg.ScanLog.Info(task.ID + "\t" + dirPath + "/" + file.Name() + ", File Updated: " + fmt.Sprint(fileUpdated) + ", Size: " + fmt.Sprint(stats.Size()))
+			fileUpdated := db.HasFileUpdated(rdb, wdb, filePath, relativeFilePath, stats)
+			lg.ScanLog.Info(task.ID + "\t" + relativeFilePath + ", File Updated: " + fmt.Sprint(fileUpdated) + ", Size: " + fmt.Sprint(stats.Size()))
 			if fileUpdated {
 				task.TotalChangedFiles++
 				task.Zip(dirPath+"/"+file.Name(), stats)
