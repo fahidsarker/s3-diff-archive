@@ -62,28 +62,36 @@ func Log(logger *BufferedLogger, message string) {
 	}
 }
 
+func ColoredMessage(level string, message string) string {
+	prefix := ""
+	switch level {
+	case "INFO":
+		prefix = constants.Green
+	case "ERROR":
+		prefix = constants.Red
+	case "WARN":
+		prefix = constants.Yellow
+	default:
+		prefix = ""
+	}
+
+	return fmt.Sprintf("\r%s%s%s\n", prefix, message, constants.Reset)
+}
+
 func FormatedLog(logger *BufferedLogger, level string, message string) {
 	toLog := fmt.Sprintf("%s | %s\t| %s", utils.NowTime(), level, message)
 	if logger.printToConsole {
-		prefix := ""
-		switch level {
-		case "INFO":
-			prefix = constants.Green
-		case "ERROR":
-			prefix = constants.Red
-		case "WARN":
-			prefix = constants.Yellow
-		default:
-			prefix = ""
-		}
-
-		fmt.Printf("\r%s%s%s\n", prefix, toLog, constants.Reset)
+		fmt.Print(ColoredMessage(level, toLog))
 	}
 	Log(logger, toLog)
 }
 
 func (logger *BufferedLogger) Info(message string, args ...any) {
 	FormatedLog(logger, "INFO", fmt.Sprintf(message, args...))
+}
+
+func (logger *BufferedLogger) Break() {
+	FormatedLog(logger, "INFO", "----------------------------------------------------")
 }
 
 func (logger *BufferedLogger) Error(message string, args ...any) {

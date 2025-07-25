@@ -14,6 +14,7 @@ import (
 func runArchiner(config *utils.Config) {
 	errors := 0
 	for i := range config.Tasks {
+		lg.Logs.Break()
 		task, err := config.GetTask(config.Tasks[i].ID)
 		if err != nil {
 			errors++
@@ -53,6 +54,7 @@ func runArchiner(config *utils.Config) {
 func runScanner(config *utils.Config) {
 	errors := 0
 	for i := range config.Tasks {
+		lg.Logs.Break()
 		task, err := config.GetTask(config.Tasks[i].ID)
 		if err != nil {
 			errors++
