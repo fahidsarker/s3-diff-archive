@@ -86,10 +86,6 @@ func (logger *BufferedLogger) Info(message string, args ...any) {
 	FormatedLog(logger, "INFO", fmt.Sprintf(message, args...))
 }
 
-func (logger *BufferedLogger) Log(message string, args ...any) {
-	FormatedLog(logger, "Log", fmt.Sprintf(message, args...))
-}
-
 func (logger *BufferedLogger) Error(message string, args ...any) {
 	FormatedLog(logger, "ERROR", fmt.Sprintf(message, args...))
 }

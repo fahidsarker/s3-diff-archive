@@ -1,23 +1,51 @@
 package main
 
 import (
-	"fmt"
 	"s3-diff-archive/archiver"
+	"s3-diff-archive/db"
 	lg "s3-diff-archive/logger"
+	"s3-diff-archive/s3"
+	"s3-diff-archive/scanner"
 	"s3-diff-archive/utils"
 )
-
-func archive(config *utils.Config) {
-	archiver.ZipDiff(config)
-	lg.Logs.Info("✔︎✔︎ DONE")
-}
 
 func main() {
 
 	config := utils.GetConfig("config.yaml")
-	fmt.Println(utils.ToJson(config))
+	err := lg.InitLoggers(config)
+	if err != nil {
+		panic(err)
+	}
+	defer lg.CloseGlobalLoggers()
 
-	return
+	task, _ := config.GetTask("photos")
+	lg.Logs.Info("Processing task %s, dir: %s, s3 StorageClass: %s", task.ID, task.Dir, task.StorageClass)
+	refDB := db.FetchRemoteDB(task)
+	defer refDB.Close()
+
+	scannedRes := scanner.ScanTask(refDB.GetDB(), task)
+	zipPaths := archiver.ArchiveToZip(task, scannedRes)
+
+	writeDB := db.NewDBInDir(task.WorkingDir)
+	writeDB.InsertSfilesToDB(scannedRes.UpdatedFiles)
+	writeDB.InsertSfilesToDB(scannedRes.UnChangedFiles)
+	zippedDBPath, err := writeDB.CloseAndZip(task.Password)
+
+	if err != nil {
+		lg.Logs.Fatal("%s", err.Error())
+	}
+
+	uploader := &s3.TaskUploader{
+		Task:          task,
+		ArchivedFiles: zipPaths,
+		DBZipPath:     zippedDBPath,
+	}
+	err = uploader.UploadAndDelete()
+	if err != nil {
+		lg.Logs.Fatal("%s", err.Error())
+	}
+	db.UpdateRegOfTask(task, zipPaths)
+
 	// args := os.Args
 	// if len(args) < 3 {
 	// 	fmt.Println("Usage: s3-diff-archive <command> <config-file-path>")

@@ -14,7 +14,7 @@ type Zipper struct {
 	fileCounts       int
 }
 
-func (c *Zipper) flush() string {
+func (c *Zipper) Flush() string {
 	filePath := c.file.Name()
 	if c.fileCounts == 0 {
 		filePath = ""
@@ -36,9 +36,9 @@ func (c *Zipper) flush() string {
 	return filePath
 }
 
-func (c *Zipper) zip(filePath string, filename string, fileStat os.FileInfo, password string) {
+func (c *Zipper) Zip(filePath string, filename string, fileStat *os.FileInfo, password string) {
 	utils.ZipFile(filePath, filename, fileStat, c.zw, password)
-	c.totalSizeInBytes += fileStat.Size()
+	c.totalSizeInBytes += (*fileStat).Size()
 	c.fileCounts++
 }
 

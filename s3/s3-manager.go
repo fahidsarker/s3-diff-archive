@@ -70,7 +70,7 @@ func UploadFileToS3(cnfg *nTypes.S3Config, ctx context.Context, nKey string, fil
 		return fmt.Errorf("PutObject failed: %w", err)
 	}
 
-	lg.Logs.Log("Uploaded (simple): %s -> s3://%s/%s\n", filePath, cnfg.S3Bucket, key)
+	lg.Logs.Info("Uploaded (simple): %s -> s3://%s/%s", filePath, cnfg.S3Bucket, key)
 	return nil
 }
 
@@ -136,7 +136,7 @@ func multipartUpload(ctx context.Context, client *s3.Client, file *os.File, file
 			PartNumber: aws.Int32(partNumber),
 		})
 
-		lg.Logs.Info("\rUploading (%s) part %d/%d (%.2f%%)\n", key, partNumber, totalParts, float64(offset+curPartSize)*100/float64(fileSize))
+		lg.Logs.Info("Uploading (%s) part %d/%d (%.2f%%)", key, partNumber, totalParts, float64(offset+curPartSize)*100/float64(fileSize))
 		partNumber++
 	}
 
@@ -154,7 +154,7 @@ func multipartUpload(ctx context.Context, client *s3.Client, file *os.File, file
 		return fmt.Errorf("failed to complete multipart upload: %w", err)
 	}
 
-	lg.Logs.Log("Uploaded (multipart): %s -> s3://%s/%s\n", file.Name(), bucket, key)
+	lg.Logs.Info("Uploaded (multipart): %s -> s3://%s/%s\n", file.Name(), bucket, key)
 	return nil
 }
 
@@ -214,6 +214,6 @@ func DownloadFileFromS3(cnfg *nTypes.S3Config, ctx context.Context, nKey, destin
 		return fmt.Errorf("failed to write file: %w", err)
 	}
 
-	lg.Logs.Log("Downloaded s3://%s/%s to %s\n", cnfg.S3Bucket, key, destinationPath)
+	lg.Logs.Info("Downloaded s3://%s/%s to %s", cnfg.S3Bucket, key, destinationPath)
 	return nil
 }

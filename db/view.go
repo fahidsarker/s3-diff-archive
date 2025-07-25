@@ -8,13 +8,11 @@ import (
 )
 
 func ViewDB(task *utils.TaskConfig) {
-	dbPath := FetchRemoteDB(task)
-	lg.Logs.Info("DB path: " + dbPath)
-	db := GetDB(dbPath)
-	defer db.Close()
+	dbc := FetchRemoteDB(task)
+	defer dbc.Close()
 
 	// log all the entries in DB using a cursor
-	err := db.View(func(txn *badger.Txn) error {
+	err := dbc.GetDB().View(func(txn *badger.Txn) error {
 		it := txn.NewIterator(badger.DefaultIteratorOptions)
 		defer it.Close()
 

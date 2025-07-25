@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"s3-diff-archive/utils"
+	"strings"
 )
 
 // var ScanLog, _ = CreateLogger(fmt.Sprintf("scan_%s.log", utils.NowTime()), false)
@@ -34,6 +35,9 @@ func InitLoggers(config *utils.Config) error {
 	if err != nil {
 		return err
 	}
+
+	Logs.Info("Loggers initialized")
+	Logs.Info("init: %s", strings.Join(os.Args, " "))
 	return nil
 }
 

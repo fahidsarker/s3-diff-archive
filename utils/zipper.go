@@ -12,7 +12,7 @@ import (
 	"github.com/alexmullins/zip"
 )
 
-func ZipFile(filePath string, filename string, fileStat os.FileInfo, zipWriter *zip.Writer, password string) {
+func ZipFile(filePath string, filename string, fileStat *os.FileInfo, zipWriter *zip.Writer, password string) {
 	fileToZip, err := os.Open(filePath)
 	if err != nil {
 		log.Fatalf("failed to open file %s: %v", filePath, err)
@@ -20,7 +20,7 @@ func ZipFile(filePath string, filename string, fileStat os.FileInfo, zipWriter *
 	defer fileToZip.Close()
 
 	var w io.Writer
-	header, err := zip.FileInfoHeader(fileStat)
+	header, err := zip.FileInfoHeader(*fileStat)
 	if err != nil {
 		log.Fatalf("failed to create zip header: %v", err)
 	}

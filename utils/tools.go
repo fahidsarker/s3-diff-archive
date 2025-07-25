@@ -8,6 +8,7 @@ import (
 	"math/rand"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/bmatcuk/doublestar/v4"
@@ -39,6 +40,10 @@ func GenerateRandString(length int) string {
 		b[i] = letterRunes[rand.Intn(len(letterRunes))]
 	}
 	return string(b)
+}
+
+func RandAndTime(length int) string {
+	return fmt.Sprintf("%s_%s", GenerateRandString(length), NowTime())
 }
 
 func Err(message string, placeholders ...any) {
@@ -127,4 +132,15 @@ func MatchPattern(pattern string, path string) bool {
 	}
 
 	return match
+}
+
+func RelativePath(abs, dir string) string {
+	relativeFilePath := abs
+	if strings.HasPrefix(abs, dir) {
+		relativeFilePath = strings.Replace(abs, dir, "", 1)
+	}
+	if (strings.HasPrefix(relativeFilePath, "/") || strings.HasPrefix(relativeFilePath, "\\")) && relativeFilePath != "\\" && relativeFilePath != "/" {
+		relativeFilePath = relativeFilePath[1:]
+	}
+	return relativeFilePath
 }
