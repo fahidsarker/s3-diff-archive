@@ -47,56 +47,60 @@ func Unzip(zipPath, destDir, password string) error {
 	}
 	defer readCloser.Close()
 
-	// Create the destination directory if it doesn't exist
 	if err := os.MkdirAll(destDir, 0755); err != nil {
 		return fmt.Errorf("failed to create destination directory %s: %w", destDir, err)
 	}
 
 	for _, file := range readCloser.File {
-		// Construct the full path for the extracted file
-		// Sanitize the file path to prevent directory traversal attacks
 		filePath := filepath.Join(destDir, file.Name)
 		if !strings.HasPrefix(filePath, filepath.Clean(destDir)+string(os.PathSeparator)) {
 			return fmt.Errorf("invalid file path in zip: %s", file.Name)
 		}
 
-		// Check if it's a directory
+		modTime := file.ModTime()
+
 		if file.FileInfo().IsDir() {
 			if err := os.MkdirAll(filePath, file.Mode()); err != nil {
 				return fmt.Errorf("failed to create directory %s: %w", filePath, err)
 			}
+			// Set modification time
+			if err := os.Chtimes(filePath, modTime, modTime); err != nil {
+				return fmt.Errorf("failed to set mod time for directory %s: %w", filePath, err)
+			}
 			continue
 		}
 
-		// Handle password if set
 		if file.IsEncrypted() && password != "" {
 			file.SetPassword(password)
-		} else if file.IsEncrypted() && password == "" {
-			fmt.Printf("Warning: File '%s' is password-protected but no password was provided. Skipping or it may fail.\n", file.Name)
-			// You might choose to skip this file or return an error here
-			// For this example, we'll let file.Open() potentially fail.
 		}
 
 		rc, err := file.Open()
 		if err != nil {
 			return fmt.Errorf("failed to open file %s in zip: %w", file.Name, err)
 		}
-		defer rc.Close() // Defer closing inside the loop for each file
 
-		// Ensure the directory for the current file exists
+		// Ensure parent dir exists
 		if err := os.MkdirAll(filepath.Dir(filePath), 0755); err != nil {
+			rc.Close()
 			return fmt.Errorf("failed to create directory for file %s: %w", filePath, err)
 		}
 
 		outFile, err := os.OpenFile(filePath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, file.Mode())
 		if err != nil {
+			rc.Close()
 			return fmt.Errorf("failed to create output file %s: %w", filePath, err)
 		}
-		defer outFile.Close() // Defer closing inside the loop for each file
 
 		_, err = io.Copy(outFile, rc)
+		outFile.Close()
+		rc.Close()
 		if err != nil {
 			return fmt.Errorf("failed to copy data for file %s: %w", filePath, err)
+		}
+
+		// Set the mod time after writing
+		if err := os.Chtimes(filePath, modTime, modTime); err != nil {
+			return fmt.Errorf("failed to set mod time for file %s: %w", filePath, err)
 		}
 	}
 

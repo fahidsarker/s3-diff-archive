@@ -42,7 +42,7 @@ func ArchiveToZip(task *utils.TaskConfig, scanRes *scanner.ScannedResult) []stri
 		if err != nil {
 			lg.Logs.Fatal("%s", err.Error())
 		}
-		zipper.Zip(path.Join(task.Dir, file.RelativePath), file.Name, &fileStat, task.Password)
+		zipper.Zip(path.Join(task.Dir, file.RelativePath), file.RelativePath, &fileStat, task.Password)
 		currentZippedFileSizeInBytes += fileStat.Size()
 		totalZippedFilesSizeInBytes += fileStat.Size()
 		fmt.Printf("\r>>> Zipped: %d / %d files, Total Size: %d bytes", i+1, totalFilesToZip, totalZippedFilesSizeInBytes)

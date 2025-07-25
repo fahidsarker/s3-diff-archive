@@ -27,23 +27,29 @@ func NewDBFromPath(dbPath string) *DBContainer {
 }
 
 func (c *DBContainer) Close() {
-	c.db.Close()
-	c.db = nil
 	c.closed = true
+	if c.db != nil {
+		c.db.Close()
+		c.db = nil
+	}
 	_ = os.RemoveAll(c.dir)
 }
 
 func (c *DBContainer) CloseNoDel() string {
-	c.db.Close()
-	c.db = nil
 	c.closed = true
+	if c.db != nil {
+		c.db.Close()
+		c.db = nil
+	}
 	return c.dir
 }
 
 func (c *DBContainer) CloseAndZip(password string) (string, error) {
-	c.db.Close()
-	c.db = nil
 	c.closed = true
+	if c.db != nil {
+		c.db.Close()
+		c.db = nil
+	}
 	zippedRes, err := archiveDB(c.dir, password)
 	_ = os.RemoveAll(c.dir)
 	return zippedRes, err

@@ -6,6 +6,7 @@ import (
 	"s3-diff-archive/archiver"
 	"s3-diff-archive/db"
 	lg "s3-diff-archive/logger"
+	"s3-diff-archive/restorer"
 	"s3-diff-archive/s3"
 	"s3-diff-archive/scanner"
 	"s3-diff-archive/utils"
@@ -72,6 +73,28 @@ func runScanner(config *utils.Config) {
 	}
 	lg.Logs.Info("Scanner completed. Total tasks: %d. Error occured: %d", len(config.Tasks), errors)
 }
+func runRestorer(config *utils.Config) {
+	lg.Logs.Info("Restorer started")
+	errors := 0
+	for i := range config.Tasks {
+		lg.Logs.Break()
+		task, err := config.GetTask(config.Tasks[i].ID)
+		if err != nil {
+			errors++
+			lg.Logs.Error("%s", err.Error())
+			continue
+		}
+		lg.Logs.Info("Processing task %s, dir: %s, s3 StorageClass: %s", task.ID, task.Dir, task.StorageClass)
+		err = restorer.RestoreTask(task)
+		if err != nil {
+			errors++
+			lg.Logs.Error("%s", err.Error())
+			continue
+		}
+		lg.Logs.Info("Task %s restored", task.ID)
+	}
+	lg.Logs.Info("Restorer completed. Total tasks: %d. Error occured: %d", len(config.Tasks), errors)
+}
 
 func main() {
 
@@ -100,6 +123,8 @@ func main() {
 		runScanner(config)
 	case "archive":
 		runArchiner(config)
+	case "restore":
+		runRestorer(config)
 	case "view":
 		if len(args) < 5 {
 			fmt.Println("Usage: s3-diff-archive view <config-file-path> --task <task-id>")

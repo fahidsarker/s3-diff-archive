@@ -1,14 +1,16 @@
-package utils
+package restorer
 
 import (
 	"fmt"
 	"os"
 	"path/filepath"
+	lg "s3-diff-archive/logger"
+	"s3-diff-archive/utils"
 	"sort"
 	"time"
 )
 
-func DirsEqual(dir1, dir2 string) (bool, error) {
+func DirsEqual(dir1, dir2 string, skips []string) (bool, error) {
 	// Canonicalize paths to ensure consistent comparison
 	absDir1, err := filepath.Abs(dir1)
 	if err != nil {
@@ -31,20 +33,23 @@ func DirsEqual(dir1, dir2 string) (bool, error) {
 
 	// Ensure both are directories
 	if !info1.IsDir() || !info2.IsDir() {
+		lg.Logs.Error("One of the dirs is not a directory")
 		return false, nil
 	}
 
-	return compareDirsRecursive(absDir1, absDir2)
+	return compareDirsRecursive(absDir1, absDir2, skips)
 }
 
 // compareDirsRecursive is a helper function to recursively compare directories.
-func compareDirsRecursive(path1, path2 string) (bool, error) {
+func compareDirsRecursive(path1, path2 string, skips []string) (bool, error) {
 	entries1, err := os.ReadDir(path1)
 	if err != nil {
+		lg.Logs.Error("%s", err.Error())
 		return false, err
 	}
 	entries2, err := os.ReadDir(path2)
 	if err != nil {
+		lg.Logs.Error("%s", err.Error())
 		return false, err
 	}
 
@@ -58,6 +63,7 @@ func compareDirsRecursive(path1, path2 string) (bool, error) {
 
 	// Check if the number of entries is the same
 	if len(entries1) != len(entries2) {
+		lg.Logs.Error("Number of entries are not equal. %s=%d, %s=%d", path1, len(entries1), path2, len(entries2))
 		return false, nil
 	}
 
@@ -66,6 +72,16 @@ func compareDirsRecursive(path1, path2 string) (bool, error) {
 		entry2 := entries2[i]
 
 		if entry1.Name() == ".DS_Store" || entry2.Name() == ".DS_Store" {
+			continue
+		}
+		skip := false
+		for _, skipFile := range skips {
+			if utils.MatchPattern(skipFile, entry1.Name()) {
+				skip = true
+				break
+			}
+		}
+		if skip {
 			continue
 		}
 
@@ -79,10 +95,12 @@ func compareDirsRecursive(path1, path2 string) (bool, error) {
 
 		info1, err := entry1.Info()
 		if err != nil {
+			lg.Logs.Error("%s not found", info1.Name())
 			return false, err
 		}
 		info2, err := entry2.Info()
 		if err != nil {
+			lg.Logs.Error("%s not found", info2.Name())
 			return false, err
 		}
 
@@ -94,7 +112,7 @@ func compareDirsRecursive(path1, path2 string) (bool, error) {
 
 		if info1.IsDir() {
 			// Recursively compare subdirectories
-			equal, err := compareDirsRecursive(fullPath1, fullPath2)
+			equal, err := compareDirsRecursive(fullPath1, fullPath2, skips)
 			if err != nil {
 				return false, err
 			}
@@ -104,14 +122,14 @@ func compareDirsRecursive(path1, path2 string) (bool, error) {
 		} else {
 			// Compare files: size and modification time
 			if info1.Size() != info2.Size() {
-				fmt.Printf("File Sizes are not equal: %s, %s\n", info1.Name(), info2.Name())
+				lg.Logs.Error("File Sizes are not equal: %s, %s\n", info1.Name(), info2.Name())
 				return false, nil
 			}
 
 			// Compare modification times. Truncate to second precision to
 			// account for file system differences in timestamp granularity.
 			if !info1.ModTime().Truncate(time.Second).Equal(info2.ModTime().Truncate(time.Second)) {
-				fmt.Printf("Mod times are not equal: %s, %s\n", info1.Name(), info2.Name())
+				lg.Logs.Error("Mod times are not equal: %s, %s\n", info1.Name(), info2.Name())
 				return false, nil
 			}
 		}
