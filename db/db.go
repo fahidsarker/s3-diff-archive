@@ -76,10 +76,10 @@ func storeFileToDB(db *badger.DB, file types.SFile) {
 	}
 }
 
-func HasFileUpdated(rdb *badger.DB, wdb *badger.DB, filePath string, fileName string, stats os.FileInfo) bool {
+func HasFileUpdated(rdb *badger.DB, wdb *badger.DB, fileName string, stats os.FileInfo) bool {
 	var file types.SFile
 	err := rdb.View(func(txn *badger.Txn) error {
-		item, err := txn.Get([]byte(filePath))
+		item, err := txn.Get([]byte(fileName))
 		if err != nil {
 			// println("___", err.Error())
 			return err

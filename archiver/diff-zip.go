@@ -121,7 +121,7 @@ func zipIterator(rdb *badger.DB, wdb *badger.DB, task *DiffZipTask, dirPath stri
 				// remove baseDir from filePath
 				relativeFilePath = strings.Replace(filePath, task.Task.Dir, "", 1)
 			}
-			fileUpdated := db.HasFileUpdated(rdb, wdb, filePath, relativeFilePath, stats)
+			fileUpdated := db.HasFileUpdated(rdb, wdb, relativeFilePath, stats)
 			lg.ScanLog.Info("%s\t%s, File Updated: %t, Size: %d", task.ID, relativeFilePath, fileUpdated, stats.Size())
 			if fileUpdated {
 				task.TotalChangedFiles++

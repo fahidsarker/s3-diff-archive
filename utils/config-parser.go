@@ -36,7 +36,7 @@ type Task struct {
 	ID                 string   `yaml:"id"`
 	Dir                string   `yaml:"dir"`
 	Excludes           []string `yaml:"exclude"`
-	storageClassString string   `yaml:"storage_class"`
+	StorageClassString string   `yaml:"storage_class"`
 	UseChecksum        bool     `yaml:"use_checksum"`
 	Password           string   `yaml:"encryption_key"`
 	StorageClass       types.StorageClass
@@ -114,11 +114,11 @@ func (c *Config) Validate() {
 	}
 
 	for i := range c.Tasks {
-		c.Tasks[i].Validate()
+		c.Tasks[i].validate()
 	}
 
 }
-func (t *Task) Validate() {
+func (t *Task) validate() {
 	required(t.ID, "Task id")
 	required(t.Dir, fmt.Sprintf("Task - %s base dir", t.ID))
 	if t.Excludes == nil {
@@ -130,14 +130,14 @@ func (t *Task) Validate() {
 		}
 	}
 
-	if t.storageClassString == "" {
+	if t.StorageClassString == "" {
 		// println("Empty storage class")
 		t.StorageClass = types.StorageClassDeepArchive
 	} else {
 		invalid := true
 		var supported []string
 		for _, sc := range types.StorageClassDeepArchive.Values() {
-			if sc == types.StorageClass(t.storageClassString) {
+			if sc == types.StorageClass(t.StorageClassString) {
 				t.StorageClass = sc
 				invalid = false
 				break
@@ -145,7 +145,7 @@ func (t *Task) Validate() {
 			supported = append(supported, string(sc))
 		}
 		if invalid {
-			Err(fmt.Sprintf("Invalid storage class: %s. Supported storage classes: %s", t.storageClassString, strings.Join(supported, ", ")))
+			Err(fmt.Sprintf("Invalid storage class: %s. Supported storage classes: %s", t.StorageClassString, strings.Join(supported, ", ")))
 		}
 	}
 
