@@ -13,6 +13,7 @@ import (
 
 func runArchiner(config *utils.Config) {
 	errors := 0
+	lg.Logs.Info("Archiver started")
 	for i := range config.Tasks {
 		lg.Logs.Break()
 		task, err := config.GetTask(config.Tasks[i].ID)
@@ -52,6 +53,7 @@ func runArchiner(config *utils.Config) {
 }
 
 func runScanner(config *utils.Config) {
+	lg.Logs.Info("Scanner started")
 	errors := 0
 	for i := range config.Tasks {
 		lg.Logs.Break()
@@ -78,13 +80,20 @@ func main() {
 		fmt.Println("Usage: s3-diff-archive <command> <config-file-path>")
 		os.Exit(1)
 	}
-
 	config := utils.GetConfig(args[2])
 	err := lg.InitLoggers(config)
 	if err != nil {
 		panic(err)
 	}
 	defer lg.CloseGlobalLoggers()
+	lg.Logs.Info("Config file: %s", args[2])
+	lg.Logs.Info("S3 Bucket: %s", config.S3Bucket)
+	lg.Logs.Info("S3 BasePath: %s", config.S3BasePath)
+	lg.Logs.Info("S3 Max Zip Size: %d", config.MaxZipSize)
+	lg.Logs.Info("Working Dir: %s", config.WorkingDir)
+	lg.Logs.Info("Logs Dir: %s", config.LogsDir)
+	lg.Logs.Info("Tasks: %d", len(config.Tasks))
+	lg.Logs.Break()
 
 	switch args[1] {
 	case "scan":

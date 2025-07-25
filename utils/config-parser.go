@@ -22,7 +22,6 @@ type BaseConfig struct {
 	S3Bucket           string `yaml:"s3_bucket"`
 	MaxZipSize         int64  `yaml:"max_zip_size"` // in MB
 	S3BasePath         string `yaml:"s3_base_path"`
-	MasterPassword     string `yaml:"master_password"`
 	WorkingDir         string `yaml:"working_dir"`
 	LogsDir            string `yaml:"logs_dir"`
 }
