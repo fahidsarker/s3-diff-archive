@@ -27,6 +27,8 @@ func ScanTask(db *badger.DB, task *utils.TaskConfig) *ScannedResult {
 }
 
 func iterator(rdb *badger.DB, task *utils.TaskConfig, res *ScannedResult, dirPath string) {
+	lg.ScanLog.Info("%s\t Iterating into dir: %s", task.ID, dirPath)
+
 	files, err := os.ReadDir(dirPath)
 	if err != nil {
 		panic(err)

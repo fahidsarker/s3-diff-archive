@@ -7,6 +7,7 @@ import (
 	lg "s3-diff-archive/logger"
 	"s3-diff-archive/utils"
 	"sort"
+	"strings"
 	"time"
 )
 
@@ -64,6 +65,16 @@ func compareDirsRecursive(path1, path2 string, skips []string) (bool, error) {
 	// Check if the number of entries is the same
 	if len(entries1) != len(entries2) {
 		lg.Logs.Error("Number of entries are not equal. %s=%d, %s=%d", path1, len(entries1), path2, len(entries2))
+		names1 := make([]string, len(entries1))
+		for i, entry := range entries1 {
+			names1[i] = entry.Name()
+		}
+		names2 := make([]string, len(entries2))
+		for i, entry := range entries2 {
+			names2[i] = entry.Name()
+		}
+		lg.Logs.Error("Files in %s are:\n%s", path1, strings.Join(names1, "\n"))
+		lg.Logs.Error("Files in %s are:\n%s", path2, strings.Join(names2, "\n"))
 		return false, nil
 	}
 
@@ -127,9 +138,11 @@ func compareDirsRecursive(path1, path2 string, skips []string) (bool, error) {
 			}
 
 			// Compare modification times. Truncate to second precision to
+			// allow a threshold of 2 seconds for timestamp differences
+			threshold := 1 * time.Second
 			// account for file system differences in timestamp granularity.
-			if !info1.ModTime().Truncate(time.Second).Equal(info2.ModTime().Truncate(time.Second)) {
-				lg.Logs.Error("Mod times are not equal: %s, %s\n", info1.Name(), info2.Name())
+			if time1, time2 := info1.ModTime().Truncate(time.Second), info2.ModTime().Truncate(time.Second); time1.After(time2.Add(threshold)) || time2.After(time1.Add(threshold)) {
+				lg.Logs.Error("Mod times are not within threshold: %s : %s, %s : %s\n", info1.Name(), info1.ModTime(), info2.Name(), info2.ModTime())
 				return false, nil
 			}
 		}

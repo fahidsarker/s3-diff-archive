@@ -144,3 +144,9 @@ func RelativePath(abs, dir string) string {
 	}
 	return relativeFilePath
 }
+
+func DeleteFils(paths []string) {
+	for _, path := range paths {
+		_ = os.RemoveAll(path)
+	}
+}

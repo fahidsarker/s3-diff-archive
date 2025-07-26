@@ -28,13 +28,14 @@ func writeRandTxtFile(dir string) {
 }
 
 func CreateRandDirFiles(baseDir string, fileCount int, depth int, currentDepth int) int {
-	// create dir if not exist
-	if _, err := os.Stat(baseDir); os.IsNotExist(err) {
-		os.Mkdir(baseDir, 0755)
-	}
 
 	if currentDepth > depth {
 		return 0
+	}
+
+	// create dir if not exist
+	if _, err := os.Stat(baseDir); os.IsNotExist(err) {
+		os.Mkdir(baseDir, 0755)
 	}
 
 	filesCreated := 0

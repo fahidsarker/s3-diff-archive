@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"path"
 	"s3-diff-archive/archiver"
 	"s3-diff-archive/db"
 	lg "s3-diff-archive/logger"
@@ -85,13 +86,22 @@ func runRestorer(config *utils.Config) {
 			continue
 		}
 		lg.Logs.Info("Processing task %s, dir: %s, s3 StorageClass: %s", task.ID, task.Dir, task.StorageClass)
-		err = restorer.RestoreTask(task)
+		zips, err := restorer.ExperimentalDownloadArchivedZips(task)
 		if err != nil {
 			errors++
 			lg.Logs.Error("%s", err.Error())
 			continue
 		}
-		lg.Logs.Info("Task %s restored", task.ID)
+		restorePath := path.Join(task.WorkingDir, task.ID, "restored_"+utils.NowTime())
+		_ = os.RemoveAll(restorePath)
+		err = restorer.RestoreFromZips(zips, restorePath, task.Password)
+		if err != nil {
+			errors++
+			lg.Logs.Error("%s", err.Error())
+			continue
+		}
+		utils.DeleteFils(zips)
+		lg.Logs.Info("Task %s restored in %s", task.ID, restorePath)
 	}
 	lg.Logs.Info("Restorer completed. Total tasks: %d. Error occured: %d", len(config.Tasks), errors)
 }
