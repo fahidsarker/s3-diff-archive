@@ -15,13 +15,20 @@ The tool automates the process of differential archiving by scanning directories
 
 ## Configuration
 
-The tool is configured using a YAML configuration file. Below is a sample configuration:
+### Environment Variables
+
+The tool requires the following environment variables to be set up, typically in a `.env` file or your environment:
+
+- `AWS_ACCESS_KEY_ID`: Your AWS access key ID.
+- `AWS_SECRET_ACCESS_KEY`: Your AWS secret access key.
+- `AWS_REGION`: Your AWS region.
+- `S3_BUCKET`: Your target S3 bucket for storing archives.
+
+### YAML Configuration
+
+The tool is configured using a YAML configuration file. Below is a sample configuration that corresponds with `config.sample.yaml`:
 
 ```yaml
-aws_access_key_id: your_aws_access_key_id
-aws_secret_access_key: your_aws_secret_access_key
-aws_region: your_aws_region
-s3_bucket: your_s3_bucket
 s3_base_path: "your_s3_base_path"
 
 logs_dir: "./logs"
@@ -33,10 +40,20 @@ tasks:
     dir: "./path-to-photos"
     storage_class: "STANDARD"
     encryption_key: "your-encryption-password"
+
   - id: videos
     dir: "./path-to-videos"
     storage_class: "STANDARD"
 ```
+
+Update the values accordingly to match your setup. The max_zip_size is specified in megabytes, and the storage_class can be set to any of the following: STANDARD, INTELLIGENT_TIERING, STANDARD_IA, ONEZONE_IA, GLACIER, DEEP_ARCHIVE.
+
+### Important Notes
+- The encryption_key in tasks is optional, used for encrypted zips.
+
+- The logs_dir is where logs are stored, while working_dir specifies where temporary files are kept during the process.
+
+Make sure to set the environment variables and configure the YAML file before running the tool.
 
 ## Usage
 ### Commands

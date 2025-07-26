@@ -10,20 +10,25 @@ import (
 	nTypes "s3-diff-archive/types"
 
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
+	"github.com/joho/godotenv"
 	"gopkg.in/yaml.v3"
 )
 
 // var SUPPORTED_STORAGE_CLASSES = []string{"STANDARD", "INTELLIGENT_TIERING", "STANDARD_IA", "ONEZONE_IA", "GLACIER", "DEEP_ARCHIVE"}
 
+type Secrets struct {
+	AWSAccessKeyID     string
+	AWSSecretAccessKey string
+	AWSRegion          string
+	S3Bucket           string
+}
+
 type BaseConfig struct {
-	AWSAccessKeyID     string `yaml:"aws_access_key_id"`
-	AWSSecretAccessKey string `yaml:"aws_secret_access_key"`
-	AWSRegion          string `yaml:"aws_region"`
-	S3Bucket           string `yaml:"s3_bucket"`
-	MaxZipSize         int64  `yaml:"max_zip_size"` // in MB
-	S3BasePath         string `yaml:"s3_base_path"`
-	WorkingDir         string `yaml:"working_dir"`
-	LogsDir            string `yaml:"logs_dir"`
+	Secrets
+	MaxZipSize int64  `yaml:"max_zip_size"` // in MB
+	S3BasePath string `yaml:"s3_base_path"`
+	WorkingDir string `yaml:"working_dir"`
+	LogsDir    string `yaml:"logs_dir"`
 }
 
 type Config struct {
@@ -55,8 +60,20 @@ func (c *Config) GetTask(taskId string) (*TaskConfig, error) {
 	return nil, fmt.Errorf("task not found")
 }
 
-func GetConfig(path string) *Config {
+func getSecretsFromEnv() Secrets {
+	err := godotenv.Load(".env")
+	if err != nil {
+		panic("Error loading .env file or no .env file found")
+	}
+	return Secrets{
+		AWSAccessKeyID:     os.Getenv("AWS_ACCESS_KEY_ID"),
+		AWSSecretAccessKey: os.Getenv("AWS_SECRET_ACCESS_KEY"),
+		AWSRegion:          os.Getenv("AWS_REGION"),
+		S3Bucket:           os.Getenv("S3_BUCKET"),
+	}
+}
 
+func GetConfig(path string) *Config {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		panic(err)
@@ -64,6 +81,7 @@ func GetConfig(path string) *Config {
 
 	var cfg Config
 	err = yaml.Unmarshal(data, &cfg)
+	cfg.Secrets = getSecretsFromEnv()
 	if err != nil {
 		panic(err)
 	}

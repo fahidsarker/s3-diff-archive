@@ -21,6 +21,16 @@ func ScanTask(db *badger.DB, task *utils.TaskConfig) *ScannedResult {
 	}
 	lg.Logs.Info("Scanning task %s", task.ID)
 	lg.ScanLog.Info("Scanning task %s", task.ID)
+	if task.Dir == "" {
+		lg.ScanLog.Info("No dir specified for task %s", task.ID)
+		return result
+	}
+	exists := utils.IsPathExists(task.Dir)
+	if !exists {
+		lg.ScanLog.Error("Dir %s does not exist for task %s", task.Dir, task.ID)
+		lg.Logs.Error("Dir %s does not exist for task %s", task.Dir, task.ID)
+		return result
+	}
 	iterator(db, task, result, task.Dir)
 	println("")
 	return result
