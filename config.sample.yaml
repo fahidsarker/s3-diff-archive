@@ -1,31 +1,29 @@
-aws_access_key_id: key_id
-aws_secret_access_key: key
-aws_region: region
-s3_bucket: bket
-
-# s3_base_path: "backups" # optional
+aws_access_key_id: aws_access_key_id
+aws_secret_access_key: aws_secret_access_key+ZUJVY4AA+dJnU
+aws_region: aws_region
+s3_bucket: s3_bucket
+s3_base_path: "s3_base_path"
 
 # store lgos (optional)
-logs_dir: "./proj/logs"
+logs_dir: "./logs"
 
 # temporarily store zip files for uploading
 working_dir: ./tmp
 
 # max size for each zip file
-max_zip_size: 300 # in MB
+max_zip_size: 5000 # in MB
 
 tasks:
   - id: photos
-    dir: ./test-files
+    dir: "./test-files"
 
     # which storage class to use for your backup zips. one of STANDARD | INTELLIGENT_TIERING | STANDARD_IA  | ONEZONE_IA | GLACIER | DEEP_ARCHIVE
     # Default is DEEP_ARCHIVE
     # DB is always stored in STANDARD
-    storage_class: STANDARD
-    exclude: [".DS_File", "**/zlgKucVEKcZED/CYJThLQRCgKaAdCU/**/*.*"]
-    encryption_key: PASSWORD # choose wisely. can not change and required for restore
+    storage_class: "STANDARD"
+    encryption_key: PASasdSWORD
+    # exclude: ["**/nukAibOVlg/**/*", "**/.DS_Store"]
 
   - id: videos
-    dir: ./test-videos
-    storage_class: STANDARD
-    # no encryption
+    dir: "./test-videos"
+    storage_class: "STANDARD"
