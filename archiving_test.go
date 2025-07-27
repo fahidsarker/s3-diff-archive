@@ -11,7 +11,7 @@ import (
 )
 
 func TestArchiving(t *testing.T) {
-	config := utils.GetConfig("./config.yaml")
+	config := utils.GetConfig("./config.yaml", ".env")
 	err := lg.InitLoggers(config)
 	if err != nil {
 		panic(err)

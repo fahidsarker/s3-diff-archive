@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"os"
 	"path"
@@ -107,19 +108,162 @@ func runRestorer(config *utils.Config) {
 }
 
 func main() {
-
-	args := os.Args
-	if len(args) < 3 {
-		fmt.Println("Usage: s3-diff-archive <command> <config-file-path>")
+	if len(os.Args) < 2 {
+		printUsage()
 		os.Exit(1)
 	}
-	config := utils.GetConfig(args[2])
+
+	command := os.Args[1]
+
+	// Define command-specific flag sets
+	switch command {
+	case "scan":
+		runScanCommand()
+	case "archive":
+		runArchiveCommand()
+	case "restore":
+		runRestoreCommand()
+	case "view":
+		runViewCommand()
+	default:
+		fmt.Printf("Unknown command: %s\n\n", command)
+		printUsage()
+		os.Exit(1)
+	}
+}
+
+func printUsage() {
+	fmt.Println("Usage: s3-diff-archive <command> [flags]")
+	fmt.Println("")
+	fmt.Println("Commands:")
+	fmt.Println("  scan     - Scan directories for changes")
+	fmt.Println("  archive  - Archive changed files to S3")
+	fmt.Println("  restore  - Restore files from S3")
+	fmt.Println("  view     - View database for a specific task")
+	fmt.Println("")
+	fmt.Println("Use 's3-diff-archive <command> -h' for command-specific help")
+}
+
+func runScanCommand() {
+	fs := flag.NewFlagSet("scan", flag.ExitOnError)
+	configPath := fs.String("config", "", "Path to configuration file (required)")
+	envPath := fs.String("env", ".env", "Path to environment file")
+
+	fs.Usage = func() {
+		fmt.Fprintf(fs.Output(), "Usage: %s scan [flags]\n\n", os.Args[0])
+		fmt.Fprintf(fs.Output(), "Scan directories for changes\n\n")
+		fmt.Fprintf(fs.Output(), "Flags:\n")
+		fs.PrintDefaults()
+	}
+
+	fs.Parse(os.Args[2:])
+
+	if *configPath == "" {
+		fmt.Println("Error: -config flag is required")
+		fs.Usage()
+		os.Exit(1)
+	}
+
+	config := utils.GetConfig(*configPath, *envPath)
+	initLoggersAndRun(config, func() {
+		runScanner(config)
+	})
+}
+
+func runArchiveCommand() {
+	fs := flag.NewFlagSet("archive", flag.ExitOnError)
+	configPath := fs.String("config", "", "Path to configuration file (required)")
+	envPath := fs.String("env", ".env", "Path to environment file")
+
+	fs.Usage = func() {
+		fmt.Fprintf(fs.Output(), "Usage: %s archive [flags]\n\n", os.Args[0])
+		fmt.Fprintf(fs.Output(), "Archive changed files to S3\n\n")
+		fmt.Fprintf(fs.Output(), "Flags:\n")
+		fs.PrintDefaults()
+	}
+
+	fs.Parse(os.Args[2:])
+
+	if *configPath == "" {
+		fmt.Println("Error: -config flag is required")
+		fs.Usage()
+		os.Exit(1)
+	}
+
+	config := utils.GetConfig(*configPath, *envPath)
+	initLoggersAndRun(config, func() {
+		runArchiner(config)
+	})
+}
+
+func runRestoreCommand() {
+	fs := flag.NewFlagSet("restore", flag.ExitOnError)
+	configPath := fs.String("config", "", "Path to configuration file (required)")
+	envPath := fs.String("env", ".env", "Path to environment file")
+
+	fs.Usage = func() {
+		fmt.Fprintf(fs.Output(), "Usage: %s restore [flags]\n\n", os.Args[0])
+		fmt.Fprintf(fs.Output(), "Restore files from S3\n\n")
+		fmt.Fprintf(fs.Output(), "Flags:\n")
+		fs.PrintDefaults()
+	}
+
+	fs.Parse(os.Args[2:])
+
+	if *configPath == "" {
+		fmt.Println("Error: -config flag is required")
+		fs.Usage()
+		os.Exit(1)
+	}
+
+	config := utils.GetConfig(*configPath, *envPath)
+	initLoggersAndRun(config, func() {
+		runRestorer(config)
+	})
+}
+
+func runViewCommand() {
+	fs := flag.NewFlagSet("view", flag.ExitOnError)
+	configPath := fs.String("config", "", "Path to configuration file (required)")
+	envPath := fs.String("env", ".env", "Path to environment file")
+	taskId := fs.String("task", "", "Task ID to view (required)")
+
+	fs.Usage = func() {
+		fmt.Fprintf(fs.Output(), "Usage: %s view [flags]\n\n", os.Args[0])
+		fmt.Fprintf(fs.Output(), "View database for a specific task\n\n")
+		fmt.Fprintf(fs.Output(), "Flags:\n")
+		fs.PrintDefaults()
+	}
+
+	fs.Parse(os.Args[2:])
+
+	if *configPath == "" {
+		fmt.Println("Error: -config flag is required")
+		fs.Usage()
+		os.Exit(1)
+	}
+
+	if *taskId == "" {
+		fmt.Println("Error: -task flag is required")
+		fs.Usage()
+		os.Exit(1)
+	}
+
+	config := utils.GetConfig(*configPath, *envPath)
+	task, err := config.GetTask(*taskId)
+	if err != nil {
+		panic(err)
+	}
+	db.ViewDB(task)
+}
+
+func initLoggersAndRun(config *utils.Config, runFunc func()) {
 	err := lg.InitLoggers(config)
 	if err != nil {
 		panic(err)
 	}
 	defer lg.CloseGlobalLoggers()
-	lg.Logs.Info("Config file: %s", args[2])
+
 	lg.Logs.Info("S3 Bucket: %s", config.S3Bucket)
 	lg.Logs.Info("S3 BasePath: %s", config.S3BasePath)
 	lg.Logs.Info("S3 Max Zip Size: %d", config.MaxZipSize)
@@ -128,28 +272,5 @@ func main() {
 	lg.Logs.Info("Tasks: %d", len(config.Tasks))
 	lg.Logs.Break()
 
-	switch args[1] {
-	case "scan":
-		runScanner(config)
-	case "archive":
-		runArchiner(config)
-	case "restore":
-		runRestorer(config)
-	case "view":
-		if len(args) < 5 {
-			fmt.Println("Usage: s3-diff-archive view <config-file-path> --task <task-id>")
-			os.Exit(1)
-		}
-		taskId := args[4]
-		task, err := config.GetTask(taskId)
-		if err != nil {
-			panic(err)
-		}
-		db.ViewDB(task)
-	default:
-		fmt.Println("Unknown command")
-		os.Exit(1)
-
-	}
-
+	runFunc()
 }

@@ -60,8 +60,8 @@ func (c *Config) GetTask(taskId string) (*TaskConfig, error) {
 	return nil, fmt.Errorf("task not found")
 }
 
-func getSecretsFromEnv() Secrets {
-	err := godotenv.Load(".env")
+func getSecretsFromEnv(envPath string) Secrets {
+	err := godotenv.Load(envPath)
 	if err != nil {
 		panic("Error loading .env file or no .env file found")
 	}
@@ -73,7 +73,7 @@ func getSecretsFromEnv() Secrets {
 	}
 }
 
-func GetConfig(path string) *Config {
+func GetConfig(path string, envPath string) *Config {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		panic(err)
@@ -81,7 +81,7 @@ func GetConfig(path string) *Config {
 
 	var cfg Config
 	err = yaml.Unmarshal(data, &cfg)
-	cfg.Secrets = getSecretsFromEnv()
+	cfg.Secrets = getSecretsFromEnv(envPath)
 	if err != nil {
 		panic(err)
 	}
