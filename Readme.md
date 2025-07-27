@@ -1,95 +1,276 @@
-# s3-diff-archive
+# S3 Diff Archive
 
-`s3-diff-archive` is a tool designed to scan directories, archive updated files into zip files, and upload them to an S3 bucket. It supports excluding certain files, compressing into zip with optional encryption, and restoration from stored archives.
+A powerful, efficient command-line tool for incremental backup and archiving of files to Amazon S3. This tool performs differential backups by only archiving files that have changed since the last backup, making it ideal for large datasets where full backups would be inefficient.
 
-## Purpose
+## 🚀 Features
 
-The tool automates the process of differential archiving by scanning directories for file changes, archiving only updated files, and uploading these archives to S3 for backup. This can efficiently manage backups by saving space and reducing upload times.
+- **Incremental Backups**: Only archives files that have changed since the last backup
+- **S3 Integration**: Direct upload to Amazon S3 with configurable storage classes
+- **Password Protection**: Encrypt your archives with password-based encryption
+- **File Filtering**: Support for include/exclude patterns using glob syntax
+- **Multiple Tasks**: Configure multiple backup tasks in a single configuration file
+- **Database Tracking**: Uses BadgerDB to track file states and changes
+- **Compression**: Automatic ZIP compression with configurable size limits
+- **Restoration**: Full restore functionality from archived backups
+- **Detailed Logging**: Comprehensive logging for monitoring and debugging
 
-## Components
+## 📦 Installation
 
-- **Scanner**: Scans directories for file changes.
-- **Archiver**: Archives the updated files into zip files.
-- **Uploader**: Uploads the archived zips to an S3 bucket.
-- **Restorer**: Restores files from archived zips stored in S3.
+### Download Pre-built Binaries
 
-## Configuration
+Pre-compiled binaries are available for download from the [Releases](https://github.com/fahidsarker/s3-diff-archive/releases) section. Choose the appropriate binary for your operating system:
+
+- **Linux**: `s3-diff-archive-linux-amd64`
+- **macOS**: `s3-diff-archive-darwin-amd64` (Intel) or `s3-diff-archive-darwin-arm64` (Apple Silicon)
+- **Windows**: `s3-diff-archive-windows-amd64.exe`
+
+### Build from Source
+
+If you prefer to build from source:
+
+```bash
+git clone https://github.com/fahidsarker/s3-diff-archive.git
+cd s3-diff-archive
+go build -o s3-diff-archive .
+```
+
+## ⚙️ Configuration
 
 ### Environment Variables
 
-The tool requires the following environment variables to be set up, typically in a `.env` file or your environment:
+Create a `.env` file in your working directory with your AWS credentials:
 
-- `AWS_ACCESS_KEY_ID`: Your AWS access key ID.
-- `AWS_SECRET_ACCESS_KEY`: Your AWS secret access key.
-- `AWS_REGION`: Your AWS region.
-- `S3_BUCKET`: Your target S3 bucket for storing archives.
+```env
+AWS_ACCESS_KEY_ID=your_access_key_here
+AWS_SECRET_ACCESS_KEY=your_secret_key_here
+AWS_REGION=us-east-1
+S3_BUCKET=your-bucket-name
+```
 
-### YAML Configuration
+### Configuration File
 
-The tool is configured using a YAML configuration file. Below is a sample configuration that corresponds with `config.sample.yaml`:
+Create a YAML configuration file (e.g., `config.yaml`) based on the sample:
 
 ```yaml
-s3_base_path: "your_s3_base_path"
+# Base path in S3 bucket where archives will be stored
+s3_base_path: "backups/my-project"
 
+# Directory to store logs (optional)
 logs_dir: "./logs"
-working_dir: "./tmp"
-max_zip_size: 5000 # in MB
 
+# Temporary directory for creating zip files
+working_dir: "./tmp"
+
+# Maximum size for each zip file in MB
+max_zip_size: 5000
+
+# Backup tasks configuration
 tasks:
   - id: photos
-    dir: "./path-to-photos"
-    storage_class: "STANDARD"
-    encryption_key: "your-encryption-password"
+    dir: "./photos"
+    storage_class: "DEEP_ARCHIVE"  # Cost-effective for long-term storage
+    encryption_key: "MySecurePassword123"
+    exclude: ["**/.DS_Store", "**/Thumbs.db", "**/*.tmp"]
+
+  - id: documents
+    dir: "./documents"
+    storage_class: "STANDARD_IA"   # For infrequently accessed files
+    encryption_key: "AnotherSecurePassword456"
 
   - id: videos
-    dir: "./path-to-videos"
-    storage_class: "STANDARD"
+    dir: "./videos"
+    storage_class: "GLACIER"       # Even more cost-effective for archives
 ```
 
-Update the values accordingly to match your setup. The max_zip_size is specified in megabytes, and the storage_class can be set to any of the following: STANDARD, INTELLIGENT_TIERING, STANDARD_IA, ONEZONE_IA, GLACIER, DEEP_ARCHIVE.
+### Storage Classes
 
-### Important Notes
-- The encryption_key in tasks is optional, used for encrypted zips.
+Choose the appropriate S3 storage class based on your access patterns and cost requirements:
 
-- The logs_dir is where logs are stored, while working_dir specifies where temporary files are kept during the process.
+- **STANDARD**: For frequently accessed data
+- **INTELLIGENT_TIERING**: Automatic cost optimization
+- **STANDARD_IA**: For infrequently accessed data
+- **ONEZONE_IA**: Lower cost for infrequently accessed data (single AZ)
+- **GLACIER**: For archival data accessed once or twice per year
+- **DEEP_ARCHIVE**: Lowest cost for long-term archival (7-10 years)
 
-Make sure to set the environment variables and configure the YAML file before running the tool.
+## 🔧 Usage
 
-## Usage
-### Commands
-- scan - Scans the specified directories for changed files.
+### Basic Commands
 
-- archive - Archives changed files into zips and uploads them to S3.
-
-- restore (experimental) - Restores files from archived zip files stored in S3.
-
-- view - Views archived data for a specific task.
-
-### How to Run
-1. Install the required dependencies.
-
-2. Set Up Your Configuration: Modify the config.yaml file with your settings such as AWS credentials, directories to scan, and storage options.
-
-3. Run the tool with the desired command:
 ```bash
-$ s3-diff-archive <command> <config-file-path>
+# Scan directories for changes (dry run)
+s3-diff-archive scan -config config.yaml
+
+# Archive changed files to S3
+s3-diff-archive archive -config config.yaml
+
+# Restore files from S3
+s3-diff-archive restore -config config.yaml
+
+# View database contents for a specific task
+s3-diff-archive view -config config.yaml -task photos
 ```
-Replace <command> with one of the supported commands (scan, archive, restore, view) and <config-file-path> with the path to your configuration file.
 
-Example:
-```bash
-$ s3-diff-archive scan ./config.yaml
+### Command-line Options
+
+Each command supports the following flags:
+
+- `-config`: Path to configuration file (required)
+- `-env`: Path to environment file (default: `.env`)
+- `-task`: Task ID (required for `view` command only)
+
+### Example Workflow
+
+1. **Initial Setup**:
+   ```bash
+   # Create your configuration
+   cp config.sample.yaml config.yaml
+   # Edit config.yaml with your settings
+   
+   # Set up environment variables
+   cp .env.example .env
+   # Edit .env with your actual AWS credentials
+   ```
+
+2. **Scan for Changes**:
+   ```bash
+   s3-diff-archive scan -config config.yaml
+   ```
+
+3. **Perform Backup**:
+   ```bash
+   s3-diff-archive archive -config config.yaml
+   ```
+
+4. **Restore When Needed**:
+   ```bash
+   s3-diff-archive restore -config config.yaml
+   ```
+
+## 📁 Project Structure
+
+```
+s3-diff-archive/
+├── main.go                 # Main application entry point
+├── go.mod                  # Go module dependencies
+├── config.sample.yaml      # Sample configuration file
+├── archiver/              
+│   ├── archiver.go        # File archiving logic
+│   └── zipper.go          # ZIP compression utilities
+├── constants/
+│   └── colors.go          # Terminal color constants
+├── crypto/
+│   ├── files.go           # File encryption/decryption
+│   └── strings.go         # String encryption utilities
+├── db/
+│   ├── container.go       # Database container management
+│   ├── db-archiver.go     # Database archiving
+│   ├── db.go              # Main database operations
+│   ├── reg.go             # File registry management
+│   └── view.go            # Database viewing utilities
+├── logger/
+│   ├── log.go             # Logging configuration
+│   └── loggers.go         # Logger implementations
+├── restorer/
+│   ├── compare.go         # File comparison utilities
+│   └── restorer.go        # File restoration logic
+├── s3/
+│   ├── s3-manager.go      # S3 operations manager
+│   └── task-uploader.go   # Task-specific upload logic
+├── scanner/
+│   ├── scanner.go         # File system scanning
+│   └── types.go           # Scanner type definitions
+├── types/
+│   ├── s3-config.go       # S3 configuration types
+│   └── sfile.go           # File metadata types
+└── utils/
+    ├── config-parser.go   # Configuration parsing
+    ├── rand-create.go     # Random data generation
+    ├── tools.go           # General utilities
+    └── zipper.go          # ZIP file utilities
 ```
 
-## Experimental Features
-- ExperimentalDownloadArchivedZips: Downloads archived zips from S3, useful for testing and ensures that restoration from S3 works as expected.
+## 🔍 How It Works
 
-## Logging
-Logs are stored in the directory specified by logs_dir in the configuration file. They provide detailed information on the scanning, archiving, and restoring processes.
+1. **Scanning**: The tool scans specified directories and calculates checksums for all files
+2. **Comparison**: File states are compared against a local BadgerDB database stored in S3
+3. **Differential Detection**: Only files that have changed (new, modified, or deleted) are identified
+4. **Archiving**: Changed files are compressed into password-protected ZIP archives
+5. **Upload**: Archives are uploaded to S3 with the specified storage class
+6. **Database Update**: The local database is updated and synchronized with S3
 
-## Contributions
-Contributions are welcome! Please fork the repository and submit a pull request with your changes.
+## 🛡️ Security Features
 
-## License
-This project is licensed under the MIT License - see the LICENSE file for details.
+- **Encryption**: All archives are password-protected using ZIP encryption
+- **AWS IAM**: Leverages AWS IAM for secure access control
+- **Secure Storage**: Passwords are not stored in configuration files
+- **Integrity Checking**: File checksums ensure data integrity
 
+## 🤝 Contributing
+
+We welcome contributions! Please follow these steps:
+
+1. **Fork the Repository**
+   ```bash
+   git clone https://github.com/yourusername/s3-diff-archive.git
+   cd s3-diff-archive
+   ```
+
+2. **Create a Feature Branch**
+   ```bash
+   git checkout -b feature/your-feature-name
+   ```
+
+3. **Make Your Changes**
+   - Write clean, well-documented code
+   - Follow Go best practices and conventions
+   - Add tests for new functionality
+
+4. **Test Your Changes**
+   ```bash
+   go test ./...
+   go build .
+   ```
+
+5. **Submit a Pull Request**
+   - Provide a clear description of your changes
+   - Include any relevant issue numbers
+   - Ensure all tests pass
+
+### Development Guidelines
+
+- **Code Style**: Follow standard Go formatting (`go fmt`)
+- **Testing**: Add unit tests for new features
+- **Documentation**: Update README and code comments as needed
+- **Dependencies**: Minimize external dependencies when possible
+
+### Reporting Issues
+
+- Use the [GitHub Issues](https://github.com/fahidsarker/s3-diff-archive/issues) page
+- Provide detailed reproduction steps
+- Include configuration files (with sensitive data removed)
+- Specify your operating system and Go version
+
+## 📄 License
+
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+
+## 🙏 Acknowledgments
+
+- [BadgerDB](https://github.com/dgraph-io/badger) for efficient key-value storage
+- [AWS SDK for Go](https://github.com/aws/aws-sdk-go-v2) for S3 integration
+- [doublestar](https://github.com/bmatcuk/doublestar) for glob pattern matching
+
+## 📞 Support
+
+For support and questions:
+
+- 📫 Create an issue on [GitHub Issues](https://github.com/fahidsarker/s3-diff-archive/issues)
+- 📖 Check the documentation and examples above
+- 🔍 Search existing issues for similar problems
+
+---
+
+**Note**: This tool is designed for efficient incremental backups. For initial backups of large datasets, the first run may take longer as it processes all files. Subsequent runs will be much faster as only changed files are processed.
+
+This tool does not guarantee data integrity or security beyond the provided encryption and S3 storage features. Always test your backup and restore processes to ensure they meet your requirements.
