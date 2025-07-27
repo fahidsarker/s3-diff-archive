@@ -13,6 +13,7 @@ A powerful, efficient command-line tool for incremental backup and archiving of 
 - **Compression**: Automatic ZIP compression with configurable size limits
 - **Restoration**: Full restore functionality from archived backups
 - **Detailed Logging**: Comprehensive logging for monitoring and debugging
+- **Notifications**: Configurable notification system for operation status updates
 
 ## 📦 Installation
 
@@ -64,6 +65,10 @@ working_dir: "./tmp"
 # Maximum size for each zip file in MB
 max_zip_size: 5000
 
+# Notification script for operation status updates (optional)
+# Available placeholders: %icon%, %operation%, %status%, %message%
+notify_script: 'echo "%icon% %operation% - %status% | %message%"'
+
 # Backup tasks configuration
 tasks:
   - id: photos
@@ -92,6 +97,34 @@ Choose the appropriate S3 storage class based on your access patterns and cost r
 - **ONEZONE_IA**: Lower cost for infrequently accessed data (single AZ)
 - **GLACIER**: For archival data accessed once or twice per year
 - **DEEP_ARCHIVE**: Lowest cost for long-term archival (7-10 years)
+
+### Notification System
+
+The tool supports configurable notifications for operation status updates. Configure the `notify_script` in your config file to receive notifications:
+
+```yaml
+# Simple echo notification (default)
+notify_script: 'echo "%icon% %operation% - %status% | %message%"'
+
+# macOS notification using osascript
+notify_script: 'osascript -e "display notification \"%message%\" with title \"S3 Archive - %operation%\" subtitle \"%status%\""'
+
+# Linux notification using notify-send
+notify_script: 'notify-send "S3 Archive - %operation%" "%message%" --urgency=normal'
+
+# Slack webhook notification
+notify_script: 'curl -X POST -H "Content-type: application/json" --data "{\"text\":\"%icon% %operation% - %status%: %message%\"}" YOUR_SLACK_WEBHOOK_URL'
+
+# Discord webhook notification
+notify_script: 'curl -H "Content-Type: application/json" -d "{\"content\":\"%icon% %operation% - %status%: %message%\"}" YOUR_DISCORD_WEBHOOK_URL'
+```
+
+#### Available Placeholders
+
+- `%icon%`: Status-specific emoji (✅ for success, ❌ for error, ⚠️ for warning, ❌⚠️❌⚠️ for fatal)
+- `%operation%`: The operation being performed (scan, archive, restore, system)
+- `%status%`: Operation status (success, error, warn, fatal)
+- `%message%`: Detailed message about the operation result
 
 ## 🔧 Usage
 
@@ -185,6 +218,7 @@ s3-diff-archive/
 │   └── sfile.go           # File metadata types
 └── utils/
     ├── config-parser.go   # Configuration parsing
+    ├── notifier.go        # Notification system
     ├── rand-create.go     # Random data generation
     ├── tools.go           # General utilities
     └── zipper.go          # ZIP file utilities

@@ -25,10 +25,11 @@ type Secrets struct {
 
 type BaseConfig struct {
 	Secrets
-	MaxZipSize int64  `yaml:"max_zip_size"` // in MB
-	S3BasePath string `yaml:"s3_base_path"`
-	WorkingDir string `yaml:"working_dir"`
-	LogsDir    string `yaml:"logs_dir"`
+	NotifyScript string `yaml:"notify_script"`
+	MaxZipSize   int64  `yaml:"max_zip_size"` // in MB
+	S3BasePath   string `yaml:"s3_base_path"`
+	WorkingDir   string `yaml:"working_dir"`
+	LogsDir      string `yaml:"logs_dir"`
 }
 
 type Config struct {

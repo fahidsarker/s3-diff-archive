@@ -26,12 +26,12 @@ func InitLoggers(config *utils.Config) error {
 		}
 	}
 	var err error
-	Logs, err = CreateLogger(fmt.Sprintf("%s/logs_%s.log", config.LogsDir, utils.NowTime()), true, defPrintToFile)
+	Logs, err = CreateLogger(fmt.Sprintf("%s/logs_%s.log", config.LogsDir, utils.NowTime()), config.NotifyScript, true, defPrintToFile)
 	if err != nil {
 		return err
 	}
 
-	ScanLog, err = CreateLogger(fmt.Sprintf("%s/scan_%s.log", config.LogsDir, utils.NowTime()), false, defPrintToFile)
+	ScanLog, err = CreateLogger(fmt.Sprintf("%s/scan_%s.log", config.LogsDir, utils.NowTime()), config.NotifyScript, false, defPrintToFile)
 	if err != nil {
 		return err
 	}

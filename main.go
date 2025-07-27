@@ -17,6 +17,7 @@ import (
 func runArchiner(config *utils.Config) {
 	errors := 0
 	lg.Logs.Info("Archiver started")
+	archivingSummary := ""
 	for i := range config.Tasks {
 		lg.Logs.Break()
 		task, err := config.GetTask(config.Tasks[i].ID)
@@ -30,7 +31,9 @@ func runArchiner(config *utils.Config) {
 		defer refDB.Close()
 
 		scannedRes := scanner.ScanTask(refDB.GetDB(), task)
+		archivingSummary += fmt.Sprintf("%s\n", scannedRes.Summary(task.ID).Message())
 		zipPaths := archiver.ArchiveToZip(task, scannedRes)
+		archivingSummary += fmt.Sprintf("Archived %d files to %d zip files\n", len(scannedRes.UpdatedFiles), len(zipPaths))
 
 		writeDB := db.NewDBInDir(task.WorkingDir)
 		writeDB.InsertSfilesToDB(scannedRes.UpdatedFiles)
@@ -51,13 +54,17 @@ func runArchiner(config *utils.Config) {
 			lg.Logs.Fatal("%s", err.Error())
 		}
 		db.UpdateRegOfTask(task, zipPaths)
+		archivingSummary += fmt.Sprintf("%d zips uploaded to S3 for task %s\n", len(zipPaths), task.ID)
+		archivingSummary += "\n---------------------\n"
 	}
 	lg.Logs.Info("Archiver completed. Total tasks: %d. Error occured: %d", len(config.Tasks), errors)
+	utils.Notify(config.NotifyScript, "archive", "success", fmt.Sprintf("Archiving Completed. %s\n%s\nTotal Tasks: %d, Errors: %d", utils.NowTime(), archivingSummary, len(config.Tasks), errors))
 }
 
 func runScanner(config *utils.Config) {
 	lg.Logs.Info("Scanner started")
 	errors := 0
+	scanSummary := ""
 	for i := range config.Tasks {
 		lg.Logs.Break()
 		task, err := config.GetTask(config.Tasks[i].ID)
@@ -71,9 +78,11 @@ func runScanner(config *utils.Config) {
 		defer refDB.Close()
 
 		scannedRes := scanner.ScanTask(refDB.GetDB(), task)
-		lg.Logs.Info("Scanned %d files in task %s. Skipped %d files, Changed %d files", len(scannedRes.UpdatedFiles)+len(scannedRes.UnChangedFiles)+len(scannedRes.SkippedFiles), task.ID, len(scannedRes.SkippedFiles), len(scannedRes.UpdatedFiles))
+		lg.Logs.Info("Scanned %d files in task %s. Skipped %d files, Changed %d files", scannedRes.TotalScanned(), task.ID, len(scannedRes.SkippedFiles), len(scannedRes.UpdatedFiles))
+		scanSummary += fmt.Sprintf("%s\n", scannedRes.Summary(task.ID).Message())
 	}
 	lg.Logs.Info("Scanner completed. Total tasks: %d. Error occured: %d", len(config.Tasks), errors)
+	utils.Notify(config.NotifyScript, "scan", "success", fmt.Sprintf("Scan Completed. %s\n%s\nTotal Tasks: %d, Errors: %d", utils.NowTime(), scanSummary, len(config.Tasks), errors))
 }
 func runRestorer(config *utils.Config) {
 	lg.Logs.Info("Restorer started")

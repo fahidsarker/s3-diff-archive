@@ -8,7 +8,7 @@ working_dir: ./tmp
 
 # max size for each zip file
 max_zip_size: 5000 # in MB
-
+notify_script: 'echo "%icon% %operation% - %status% | %message%"'
 tasks:
   - id: photos
     dir: "./test-files"

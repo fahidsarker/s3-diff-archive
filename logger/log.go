@@ -15,16 +15,18 @@ type BufferedLogger struct {
 	done           chan struct{}
 	printToConsole bool
 	printToFile    bool
+	notifyScript   string
 }
 
 // CreateLogger sets up a buffered logger writing to the specified file path.
-func CreateLogger(path string, printToConsole bool, printToFile bool) (*BufferedLogger, error) {
+func CreateLogger(path, notifyScript string, printToConsole, printToFile bool) (*BufferedLogger, error) {
 
 	logger := &BufferedLogger{
 		logChan:        make(chan string, 10000),
 		done:           make(chan struct{}),
 		printToConsole: printToConsole,
 		printToFile:    printToFile,
+		notifyScript:   notifyScript,
 	}
 
 	if printToFile {
@@ -104,6 +106,7 @@ func (logger *BufferedLogger) ElogR(message string, args ...any) error {
 }
 func (logger *BufferedLogger) Fatal(message string, args ...any) {
 	FormatedLog(logger, "ERROR", fmt.Sprintf(message, args...))
+	utils.Notify(logger.notifyScript, "system", "fatal", fmt.Sprintf(message, args...))
 	os.Exit(1)
 }
 
