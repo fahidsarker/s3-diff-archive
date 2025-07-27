@@ -28,7 +28,6 @@ func ScanTask(db *badger.DB, task *utils.TaskConfig) (*ScannedResult, error) {
 	exists := utils.IsPathExists(task.Dir)
 	if !exists {
 		lg.ScanLog.Error("Dir %s does not exist for task %s", task.Dir, task.ID)
-		lg.Logs.Error("Dir %s does not exist for task %s", task.Dir, task.ID)
 		return result, fmt.Errorf("dir %s does not exist for task %s", task.Dir, task.ID)
 	}
 	iterator(db, task, result, task.Dir)
