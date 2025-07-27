@@ -29,8 +29,16 @@ func runArchiner(config *utils.Config) {
 		refDB := db.FetchRemoteDB(task)
 		defer refDB.Close()
 
-		scannedRes := scanner.ScanTask(refDB.GetDB(), task)
+		scannedRes, err := scanner.ScanTask(refDB.GetDB(), task)
+		if err != nil {
+			errors++
+			lg.Logs.Error("%s", err.Error())
+			task.Notify("scan", "error", err.Error())
+			continue
+		}
+		task.Notify("scan", "success", fmt.Sprintf("Scanned %d files in task %s. Skipped %d files, Changed %d files", scannedRes.TotalScanned(), task.ID, len(scannedRes.SkippedFiles), len(scannedRes.UpdatedFiles)))
 		zipPaths := archiver.ArchiveToZip(task, scannedRes)
+		task.Notify("archive", "success", fmt.Sprintf("Archived %d files in task %s to %d zip files", len(scannedRes.UpdatedFiles), task.ID, len(zipPaths)))
 
 		writeDB := db.NewDBInDir(task.WorkingDir)
 		writeDB.InsertSfilesToDB(scannedRes.UpdatedFiles)
@@ -51,8 +59,11 @@ func runArchiner(config *utils.Config) {
 			lg.Logs.Fatal("%s", err.Error())
 		}
 		db.UpdateRegOfTask(task, zipPaths)
+
 	}
+
 	lg.Logs.Info("Archiver completed. Total tasks: %d. Error occured: %d", len(config.Tasks), errors)
+
 }
 
 func runScanner(config *utils.Config) {
@@ -64,14 +75,23 @@ func runScanner(config *utils.Config) {
 		if err != nil {
 			errors++
 			lg.Logs.Error("%s", err.Error())
+			task.Notify("scan", "error", err.Error())
 			continue
 		}
 		lg.Logs.Info("Processing task %s, dir: %s, s3 StorageClass: %s", task.ID, task.Dir, task.StorageClass)
 		refDB := db.FetchRemoteDB(task)
 		defer refDB.Close()
 
-		scannedRes := scanner.ScanTask(refDB.GetDB(), task)
-		lg.Logs.Info("Scanned %d files in task %s. Skipped %d files, Changed %d files", len(scannedRes.UpdatedFiles)+len(scannedRes.UnChangedFiles)+len(scannedRes.SkippedFiles), task.ID, len(scannedRes.SkippedFiles), len(scannedRes.UpdatedFiles))
+		scannedRes, err := scanner.ScanTask(refDB.GetDB(), task)
+		if err != nil {
+			errors++
+			lg.Logs.Error("%s", err.Error())
+			task.Notify("scan", "error", err.Error())
+			continue
+		}
+		message := fmt.Sprintf("Scanned %d files in task %s. Skipped %d files, Changed %d files", scannedRes.TotalScanned(), task.ID, len(scannedRes.SkippedFiles), len(scannedRes.UpdatedFiles))
+		lg.Logs.Info("%s", message)
+		task.Notify("scan", "success", message)
 	}
 	lg.Logs.Info("Scanner completed. Total tasks: %d. Error occured: %d", len(config.Tasks), errors)
 }

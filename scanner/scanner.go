@@ -13,7 +13,7 @@ import (
 	badger "github.com/dgraph-io/badger/v4"
 )
 
-func ScanTask(db *badger.DB, task *utils.TaskConfig) *ScannedResult {
+func ScanTask(db *badger.DB, task *utils.TaskConfig) (*ScannedResult, error) {
 	result := &ScannedResult{
 		UpdatedFiles:   []*types.SFile{},
 		SkippedFiles:   []string{},
@@ -23,17 +23,17 @@ func ScanTask(db *badger.DB, task *utils.TaskConfig) *ScannedResult {
 	lg.ScanLog.Info("Scanning task %s", task.ID)
 	if task.Dir == "" {
 		lg.ScanLog.Info("No dir specified for task %s", task.ID)
-		return result
+		return result, fmt.Errorf("no dir specified for task %s", task.ID)
 	}
 	exists := utils.IsPathExists(task.Dir)
 	if !exists {
 		lg.ScanLog.Error("Dir %s does not exist for task %s", task.Dir, task.ID)
 		lg.Logs.Error("Dir %s does not exist for task %s", task.Dir, task.ID)
-		return result
+		return result, fmt.Errorf("dir %s does not exist for task %s", task.Dir, task.ID)
 	}
 	iterator(db, task, result, task.Dir)
 	println("")
-	return result
+	return result, nil
 }
 
 func iterator(rdb *badger.DB, task *utils.TaskConfig, res *ScannedResult, dirPath string) {

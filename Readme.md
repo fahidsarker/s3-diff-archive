@@ -13,6 +13,8 @@ A powerful, efficient command-line tool for incremental backup and archiving of 
 - **Compression**: Automatic ZIP compression with configurable size limits
 - **Restoration**: Full restore functionality from archived backups
 - **Detailed Logging**: Comprehensive logging for monitoring and debugging
+- **Error Handling**: Robust error handling with proper error propagation and reporting
+- **Notification System**: Configurable notification scripts for operation status updates
 
 ## 📦 Installation
 
@@ -64,6 +66,9 @@ working_dir: "./tmp"
 # Maximum size for each zip file in MB
 max_zip_size: 5000
 
+# Optional notification script (supports placeholders)
+notify_script: "curl -X POST -H 'Content-Type: application/json' -d '{\"text\":\"%icon% Task %taskid% %tasktype% %status%: %message%\"}' YOUR_WEBHOOK_URL"
+
 # Backup tasks configuration
 tasks:
   - id: photos
@@ -92,6 +97,28 @@ Choose the appropriate S3 storage class based on your access patterns and cost r
 - **ONEZONE_IA**: Lower cost for infrequently accessed data (single AZ)
 - **GLACIER**: For archival data accessed once or twice per year
 - **DEEP_ARCHIVE**: Lowest cost for long-term archival (7-10 years)
+
+### Notification System
+
+The tool supports configurable notifications to keep you informed about backup operations. You can configure a notification script in your YAML configuration:
+
+```yaml
+notify_script: "curl -X POST -H 'Content-Type: application/json' -d '{\"text\":\"%icon% Task %taskid% %tasktype% %status%: %message%\"}' YOUR_WEBHOOK_URL"
+```
+
+**Available placeholders:**
+- `%icon%`: Status icon (✅ for success, ❌ for error, ⚠️ for warning, ℹ️ for info)
+- `%taskid%`: The task identifier
+- `%tasktype%`: Operation type (scan, archive, restore)
+- `%status%`: Operation status (success, error, warn, info)
+- `%message%`: Detailed status message
+
+**Example integrations:**
+- Slack webhooks
+- Discord webhooks
+- Email notifications via curl
+- Custom logging systems
+- Monitoring dashboards
 
 ## 🔧 Usage
 
@@ -193,11 +220,20 @@ s3-diff-archive/
 ## 🔍 How It Works
 
 1. **Scanning**: The tool scans specified directories and calculates checksums for all files
-2. **Comparison**: File states are compared against a local BadgerDB database stored in S3
-3. **Differential Detection**: Only files that have changed (new, modified, or deleted) are identified
-4. **Archiving**: Changed files are compressed into password-protected ZIP archives
-5. **Upload**: Archives are uploaded to S3 with the specified storage class
-6. **Database Update**: The local database is updated and synchronized with S3
+2. **Error Validation**: Comprehensive error checking ensures directories exist and are accessible
+3. **Comparison**: File states are compared against a local BadgerDB database stored in S3
+4. **Differential Detection**: Only files that have changed (new, modified, or deleted) are identified
+5. **Archiving**: Changed files are compressed into password-protected ZIP archives
+6. **Upload**: Archives are uploaded to S3 with the specified storage class
+7. **Database Update**: The local database is updated and synchronized with S3
+8. **Notification**: Optional notifications keep you informed of operation status
+
+**Enhanced Error Handling**: The tool now includes robust error handling throughout the pipeline:
+- Directory existence validation
+- File access permission checks
+- S3 connectivity verification
+- Database integrity validation
+- Graceful failure recovery with detailed error messages
 
 ## 🛡️ Security Features
 

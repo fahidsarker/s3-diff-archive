@@ -18,7 +18,7 @@ func TestArchiving(t *testing.T) {
 	}
 	defer lg.CloseGlobalLoggers()
 
-	utils.CreateRandDirFiles("./test-files", 5, 5, 0)
+	utils.CreateRandDirFiles("./test-files", 3, 5, 0)
 
 	task, err := config.GetTask("photos")
 	if err != nil {
@@ -27,7 +27,7 @@ func TestArchiving(t *testing.T) {
 
 	tempDB := db.NewDBInDir("./tmp/test-db")
 	defer tempDB.Close()
-	scanned := scanner.ScanTask(tempDB.GetDB(), task)
+	scanned, _ := scanner.ScanTask(tempDB.GetDB(), task)
 	println(scanned.SkippedFiles)
 
 	archived := archiver.ArchiveToZip(task, scanned)

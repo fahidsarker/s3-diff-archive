@@ -3,7 +3,9 @@ package utils
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 
@@ -25,10 +27,11 @@ type Secrets struct {
 
 type BaseConfig struct {
 	Secrets
-	MaxZipSize int64  `yaml:"max_zip_size"` // in MB
-	S3BasePath string `yaml:"s3_base_path"`
-	WorkingDir string `yaml:"working_dir"`
-	LogsDir    string `yaml:"logs_dir"`
+	NotifyScript string `yaml:"notify_script"`
+	MaxZipSize   int64  `yaml:"max_zip_size"` // in MB
+	S3BasePath   string `yaml:"s3_base_path"`
+	WorkingDir   string `yaml:"working_dir"`
+	LogsDir      string `yaml:"logs_dir"`
 }
 
 type Config struct {
@@ -135,6 +138,41 @@ func (c *Config) Validate() {
 	}
 
 }
+
+func (t *TaskConfig) Notify(cmdType string, status string, message string) {
+	if t.NotifyScript == "" {
+		return
+	}
+
+	script := t.NotifyScript
+	switch status {
+	case "success":
+		script = strings.ReplaceAll(script, "%icon%", "✅")
+	case "error":
+		script = strings.ReplaceAll(script, "%icon%", "❌")
+	case "warn":
+		script = strings.ReplaceAll(script, "%icon%", "⚠️")
+	default:
+		script = strings.ReplaceAll(script, "%icon%", "ℹ️")
+	}
+	script = strings.ReplaceAll(script, "%tasktype%", cmdType)
+	script = strings.ReplaceAll(script, "%taskid%", t.ID)
+	script = strings.ReplaceAll(script, "%status%", status)
+	script = strings.ReplaceAll(script, "%message%", message)
+
+	// Execute the script through the appropriate shell based on OS
+	var err error
+	if runtime.GOOS == "windows" {
+		err = exec.Command("cmd", "/C", script).Run()
+	} else {
+		err = exec.Command("sh", "-c", script).Run()
+	}
+
+	if err != nil {
+		fmt.Printf("Failed to execute notify script: %s, error: %v\n", script, err)
+	}
+}
+
 func (t *Task) validate() {
 	required(t.ID, "Task id")
 	required(t.Dir, fmt.Sprintf("Task - %s base dir", t.ID))
