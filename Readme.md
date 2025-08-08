@@ -7,11 +7,11 @@ A powerful, efficient command-line tool for incremental backup and archiving of 
 - **Incremental Backups**: Only archives files that have changed since the last backup
 - **S3 Integration**: Direct upload to Amazon S3 with configurable storage classes
 - **Password Protection**: Encrypt your archives with password-based encryption
-- **File Filtering**: Support for include/exclude patterns using glob syntax
+- **File Filtering**: Support for exclude patterns using glob syntax
 - **Multiple Tasks**: Configure multiple backup tasks in a single configuration file
 - **Database Tracking**: Uses BadgerDB to track file states and changes
 - **Compression**: Automatic ZIP compression with configurable size limits
-- **Restoration**: Full restore functionality from archived backups
+- **Restoration**: Experimental restore functionality from archived backups (Must request deep_archive restore first from s3)
 - **Detailed Logging**: Comprehensive logging for monitoring and debugging
 - **Notifications**: Configurable notification system for operation status updates
 
