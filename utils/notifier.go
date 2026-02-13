@@ -1,15 +1,14 @@
 package utils
 
 import (
-	"fmt"
 	"os/exec"
 	"runtime"
 	"strings"
 )
 
-func Notify(script, operation, status, message string) {
+func Notify(script, operation, status, message string) (string, error) {
 	if script == "" {
-		return
+		return "", nil
 	}
 
 	switch status {
@@ -36,7 +35,5 @@ func Notify(script, operation, status, message string) {
 		err = exec.Command("sh", "-c", script).Run()
 	}
 
-	if err != nil {
-		fmt.Printf("Failed to execute notify script: %s, error: %v\n", script, err)
-	}
+	return script, err
 }

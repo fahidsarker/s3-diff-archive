@@ -58,7 +58,12 @@ func runArchiner(config *utils.Config) {
 		archivingSummary += "\n---------------------\n"
 	}
 	lg.Logs.Info("Archiver completed. Total tasks: %d. Error occured: %d", len(config.Tasks), errors)
-	utils.Notify(config.NotifyScript, "archive", "success", fmt.Sprintf("Archiving Completed. %s\n%s\nTotal Tasks: %d, Errors: %d", utils.NowTime(), archivingSummary, len(config.Tasks), errors))
+	script, err := utils.Notify(config.NotifyScript, "archive", "success", fmt.Sprintf("Archiving Completed. %s\n%s\nTotal Tasks: %d, Errors: %d", utils.NowTime(), archivingSummary, len(config.Tasks), errors))
+	if err != nil {
+		lg.Logs.Error("Failed to send notification: %v with script: %s", err, script)
+	} else {
+		lg.Logs.Info("Notification sent successfully via script: %s", script)
+	}
 }
 
 func runScanner(config *utils.Config) {
@@ -82,7 +87,12 @@ func runScanner(config *utils.Config) {
 		scanSummary += fmt.Sprintf("%s\n", scannedRes.Summary(task.ID).Message())
 	}
 	lg.Logs.Info("Scanner completed. Total tasks: %d. Error occured: %d", len(config.Tasks), errors)
-	utils.Notify(config.NotifyScript, "scan", "success", fmt.Sprintf("Scan Completed. %s\n%s\nTotal Tasks: %d, Errors: %d", utils.NowTime(), scanSummary, len(config.Tasks), errors))
+	script, err := utils.Notify(config.NotifyScript, "scan", "success", fmt.Sprintf("Scan Completed. %s\n%s\nTotal Tasks: %d, Errors: %d", utils.NowTime(), scanSummary, len(config.Tasks), errors))
+	if err != nil {
+		lg.Logs.Error("Failed to send notification: %v with script: %s", err, script)
+	} else {
+		lg.Logs.Info("Notification sent successfully via script: %s", script)
+	}
 }
 func runRestorer(config *utils.Config) {
 	lg.Logs.Info("Restorer started")
